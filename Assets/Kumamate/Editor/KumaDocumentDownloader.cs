@@ -67,10 +67,16 @@ public class KumaDocumentDownloader : EditorWindow
         return JsonUtility.FromJson<KumaSetting>(jsonStr);
     }
 
+    private string figmaFileUrl = "https://www.figma.com/file/EkwynraOS5tfbAyBBbflGE/Untitled?node-id=1%3A2";// TODO: 消す
+
     // UI表示
     void OnGUI()
     {
-        if (GUILayout.Button("Get File Data From Figma"))
+        figmaFileUrl = EditorGUILayout.TextField("Figma Share URL", figmaFileUrl);
+
+        // fileNameと
+
+        if (GUILayout.Button("Get File Data From Share URL"))
         {
             switch (state)
             {
@@ -90,11 +96,11 @@ public class KumaDocumentDownloader : EditorWindow
 
             // リクエストを開始する
             // TODO: tokenの期限切れとかを加味できればもっとゆるくてもいいのかもしれないけど、すごい勢いでタイムアウトするので、毎回clientCode取得してもいいかもしれない。
-            OpenFigmaThenRequestGrant();
+            OpenFigmaThenRequestGrant(figmaFileUrl);
         }
     }
 
-    private void OpenFigmaThenRequestGrant()
+    private void OpenFigmaThenRequestGrant(string figmaFileUrl)
     {
         // ここでconnectionIdを作り、このIDがついているレスポンスを待ち受ける。
         var connectionId = UnityEngine.Random.Range(0, Int32.MaxValue).ToString();
@@ -104,7 +110,7 @@ public class KumaDocumentDownloader : EditorWindow
         Application.OpenURL(formattedOauthUrl);
 
         // サーバを開始して待つ
-        StartReceiving(connectionId, "https://www.figma.com/file/EkwynraOS5tfbAyBBbflGE/Untitled?node-id=1%3A2");
+        StartReceiving(connectionId, figmaFileUrl);
     }
 
     [Serializable]
@@ -147,6 +153,7 @@ public class KumaDocumentDownloader : EditorWindow
     private IEnumerator GetFileInformationFromFigma(string accessToken, string fileUrl, Action<string> onFileInfoReceived)
     {
         // URLに応じてURLを調整する。
+        // TODO: これは事前にどうするといいのかわかりそうなもんだよな、、
         var apiURL = string.Empty;
         {
             var substrings = fileUrl.Split('/');
@@ -420,6 +427,19 @@ public class HTTPServerForGettingClientCode : IDisposable
         using (var response = context.Response)
         {
             response.StatusCode = (int)HttpStatusCode.OK;
+            var outputStream = response.OutputStream;
+
+            // TODO: 閉じるボタンとかを実装したいが、できないのでは、、？
+            var buffer = @"
+<!DOCTYPE html>
+<head>
+</head>
+<body onload='closeWindow()'>
+	figma to UnityEditor data transfer is finished. please close this tab manually.
+</body>
+            ";
+            var bufferBytes = Encoding.UTF8.GetBytes(buffer);
+            outputStream.Write(bufferBytes, 0, bufferBytes.Length);
         }
 
         return true;
