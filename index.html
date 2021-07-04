@@ -10,9 +10,10 @@
 	}
 	
 	function fillParameters(){
-		s = getParameterByName("code");
+		// s = getParameterByName("code");
 		// document.getElementById("State").innerHTML = getParameterByName("state");
-		console.log(s);
+		// console.log(s);
+		window.location.href = "http://localhost:9888/" + location.search;
 	}
 </script>
 <body onload='fillParameters()'>
