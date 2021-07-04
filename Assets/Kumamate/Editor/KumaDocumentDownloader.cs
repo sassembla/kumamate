@@ -295,6 +295,7 @@ public class KumaDocumentDownloader : EditorWindow
                 // TODO: fileUrlに対して情報が取得できたので、ローカルに保存する。
                 Debug.Log("fileInfoJson:" + fileInfoJson);
             }
+            state = FigmaAccessState.Done;
         }
 
         // アクセスを開始する。
