@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<head>
+</head>
+<script type="text/javascript">
+	function getParameterByName(name) {
+		name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+		var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+			results = regex.exec(location.search);
+		return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+	}
+	
+	function fillParameters(){
+		s = getParameterByName("code");
+		// document.getElementById("State").innerHTML = getParameterByName("state");
+		console.log(s);
+	}
+</script>
+<body onload='fillParameters()'>
+</body>
