@@ -197,110 +197,111 @@ public class KumaDocumentDownloader : EditorWindow
     {
         state = FigmaAccessState.GettingClientCode;
 
-        IEnumerator accessToFigma()
+        // アクセスを開始する。
+        StartEditorCoroutine(AccessToFigma(connectionId, targetFileUrl));
+    }
+
+    private IEnumerator AccessToFigma(string connectionId, string targetFileUrl)
+    {
+        var clientCode = string.Empty;
+
+        // clientCodeを取得する。
         {
-            var clientCode = string.Empty;
+            var waitResponse = true;
 
-            // clientCodeを取得する。
+            using (var server = new HTTPServerForGettingClientCode(
+                connectionId,
+                clientCodeStr =>
+                {
+                    // クライアントコードを受け取ったので待ちを終了する。
+                    clientCode = clientCodeStr;
+                    waitResponse = false;
+                }
+            ))
             {
-                var waitResponse = true;
+                // サーバの開始
+                server.Start("http://+:" + port + "/");
 
-                using (var server = new HTTPServerForGettingClientCode(
-                    connectionId,
-                    clientCodeStr =>
+                // レスポンスを受け取るか、最大3分待つ。
+                var startTime = DateTime.UtcNow;
+                while (waitResponse)
+                {
+                    if (3 < (DateTime.UtcNow - startTime).TotalMinutes)
                     {
-                        // クライアントコードを受け取ったので待ちを終了する。
-                        clientCode = clientCodeStr;
                         waitResponse = false;
+                        state = FigmaAccessState.GettingAccessTokenFailed;
+                        Debug.LogError("3分経過してもfigmaからClientCodeが取得できなかったため、Editor上のサーバを停止する。");
+                        yield break;
                     }
-                ))
-                {
-                    // サーバの開始
-                    server.Start("http://+:" + port + "/");
-
-                    // レスポンスを受け取るか、最大3分待つ。
-                    var startTime = DateTime.UtcNow;
-                    while (waitResponse)
-                    {
-                        if (3 < (DateTime.UtcNow - startTime).TotalMinutes)
-                        {
-                            waitResponse = false;
-                            state = FigmaAccessState.GettingAccessTokenFailed;
-                            Debug.LogError("3分経過してもfigmaからClientCodeが取得できなかったため、Editor上のサーバを停止する。");
-                            yield break;
-                        }
-                        yield return null;
-                    }
-                }
-
-                if (string.IsNullOrEmpty(clientCode))
-                {
-                    state = FigmaAccessState.GettingAccessTokenFailed;
-                    Debug.LogError("figmaから取得したレスポンスが異常だったため、Editor上のサーバを停止する。");
-                    yield break;
-                }
-            }
-
-            // accessTokenを取得する。
-            state = FigmaAccessState.GettingAccessToken;
-            var accessToken = string.Empty;
-            {
-                var access = RequestAccessToFigma(
-                    clientCode,
-                    token =>
-                    {
-                        accessToken = token;
-                    }
-                );
-
-                while (access.MoveNext())
-                {
                     yield return null;
                 }
-
-                if (string.IsNullOrEmpty(accessToken))
-                {
-                    state = FigmaAccessState.GettingAccessTokenFailed;
-                    Debug.LogError("失敗4 accessTokenの取得に失敗した");
-                    yield break;
-                }
             }
 
-            // ファイル情報を取得する。
-            state = FigmaAccessState.GettingFileInfo;
+            if (string.IsNullOrEmpty(clientCode))
             {
-                var fileInfoJson = string.Empty;
-
-                var access = GetFileInformationFromFigma(
-                    accessToken,
-                    targetFileUrl,
-                    fileInfoStr =>
-                    {
-                        fileInfoJson = fileInfoStr;
-                    }
-                );
-
-                while (access.MoveNext())
-                {
-                    yield return null;
-                }
-
-                if (string.IsNullOrEmpty(fileInfoJson))
-                {
-                    state = FigmaAccessState.GettingFileInfoFailed;
-                    Debug.LogError("失敗5 ファイル情報の取得に失敗した");
-                    yield break;
-                }
-
-                // TODO: fileUrlに対して情報が取得できたので、ローカルに保存する。
-                Debug.Log("fileInfoJson:" + fileInfoJson);
+                state = FigmaAccessState.GettingAccessTokenFailed;
+                Debug.LogError("figmaから取得したレスポンスが異常だったため、Editor上のサーバを停止する。");
+                yield break;
             }
-            state = FigmaAccessState.Done;
         }
 
-        // アクセスを開始する。
-        StartEditorCoroutine(accessToFigma());
+        // accessTokenを取得する。
+        state = FigmaAccessState.GettingAccessToken;
+        var accessToken = string.Empty;
+        {
+            var access = RequestAccessToFigma(
+                clientCode,
+                token =>
+                {
+                    accessToken = token;
+                }
+            );
+
+            while (access.MoveNext())
+            {
+                yield return null;
+            }
+
+            if (string.IsNullOrEmpty(accessToken))
+            {
+                state = FigmaAccessState.GettingAccessTokenFailed;
+                Debug.LogError("失敗4 accessTokenの取得に失敗した");
+                yield break;
+            }
+        }
+
+        // ファイル情報を取得する。
+        state = FigmaAccessState.GettingFileInfo;
+        {
+            var fileInfoJson = string.Empty;
+
+            var access = GetFileInformationFromFigma(
+                accessToken,
+                targetFileUrl,
+                fileInfoStr =>
+                {
+                    fileInfoJson = fileInfoStr;
+                }
+            );
+
+            while (access.MoveNext())
+            {
+                yield return null;
+            }
+
+            if (string.IsNullOrEmpty(fileInfoJson))
+            {
+                state = FigmaAccessState.GettingFileInfoFailed;
+                Debug.LogError("失敗5 ファイル情報の取得に失敗した");
+                yield break;
+            }
+
+            // TODO: fileUrlに対して情報が取得できたので、ローカルに保存する。
+            Debug.Log("fileInfoJson:" + fileInfoJson);
+        }
+        state = FigmaAccessState.Done;
     }
+
 
 
     // Editorで使えるCoroutineのStart関数
