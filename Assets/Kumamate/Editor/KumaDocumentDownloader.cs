@@ -19,9 +19,6 @@ using UnityEngine.Networking;
 public class KumaDocumentDownloader : EditorWindow
 {
     private const int port = 9888;
-    private static KumaSetting setting;
-    private const string settingPath = "Assets/Kumamate/Editor/Storage/setting.json";
-
 
     private const string ClientID = "DfyB0kK2LiFeoa3cTyymAG";
     private const string ClientSecret = "dgDSVcJzxkULNG6jaY0D68Ehl7tJ7g";
@@ -30,6 +27,8 @@ public class KumaDocumentDownloader : EditorWindow
     private const string OAuthUrl = "https://www.figma.com/api/oauth/token?client_id={0}&client_secret={1}&redirect_uri={2}&code={3}&grant_type=authorization_code";
     private const string ClientCodeUrl = "https://www.figma.com/oauth?client_id={0}&redirect_uri={1}&scope=file_read&state={2}&response_type=code";
 
+    private const string FileGetUrl = "https://api.figma.com/v1/files/{0}";
+    private const string FileGetUrlWithNodeId = "https://api.figma.com/v1/files/{0}/nodes?ids={1}";
 
     private enum FigmaAccessState
     {
@@ -51,20 +50,6 @@ public class KumaDocumentDownloader : EditorWindow
     {
         var window = (KumaDocumentDownloader)EditorWindow.GetWindow(typeof(KumaDocumentDownloader));
         window.Show();
-
-        // セッティングのロードを行う
-        setting = LoadSetting();
-    }
-
-    private static KumaSetting LoadSetting()
-    {
-        if (!File.Exists(settingPath))
-        {
-            return new KumaSetting();
-        }
-
-        var jsonStr = File.ReadAllText(settingPath);
-        return JsonUtility.FromJson<KumaSetting>(jsonStr);
     }
 
     private string figmaFileUrl = "https://www.figma.com/file/EkwynraOS5tfbAyBBbflGE/Untitled?node-id=1%3A2";// TODO: 消す
@@ -74,7 +59,7 @@ public class KumaDocumentDownloader : EditorWindow
     {
         figmaFileUrl = EditorGUILayout.TextField("Figma Share URL", figmaFileUrl);
 
-        // fileNameと
+        // TODO: fileNameとかを取得してキャッシュさせたいが、うーん、、
 
         if (GUILayout.Button("Get File Data From Share URL"))
         {
@@ -94,23 +79,32 @@ public class KumaDocumentDownloader : EditorWindow
                     return;
             }
 
-            // リクエストを開始する
-            // TODO: tokenの期限切れとかを加味できればもっとゆるくてもいいのかもしれないけど、すごい勢いでタイムアウトするので、毎回clientCode取得してもいいかもしれない。
-            OpenFigmaThenRequestGrant(figmaFileUrl);
+            // TODO: これは事前にどうするといいのかわかりそうなもんだよな、、ファイルキャッシュとかができればそれを元になんとかしたい。
+            var (fileName, nodeId, apiUrl) = ParseFigmaShareURL(figmaFileUrl);
+
+            // アクセスを開始する。
+            StartEditorCoroutine(AccessToFigma(apiUrl));
         }
     }
 
-    private void OpenFigmaThenRequestGrant(string figmaFileUrl)
+    // figma share URLからfileNameや取得用のAPI URLを取得する。
+    private (string fileName, string nodeId, string apiUrl) ParseFigmaShareURL(string shareUrl)
     {
-        // ここでconnectionIdを作り、このIDがついているレスポンスを待ち受ける。
-        var connectionId = UnityEngine.Random.Range(0, Int32.MaxValue).ToString();
-        var formattedOauthUrl = String.Format(ClientCodeUrl, ClientID, RedirectURI, connectionId);
+        var substrings = figmaFileUrl.Split('/');
+        var length = substrings.Length;
 
-        // figmaをブラウザで開き、リクエストがリダイレクト先に到達するのを待つ。
-        Application.OpenURL(formattedOauthUrl);
+        var _fileName = substrings[length - 2];
 
-        // サーバを開始して待つ
-        StartReceiving(connectionId, figmaFileUrl);
+        // node-idを含むURLの場合、URLを切り替える。
+        if (substrings[length - 1].Contains("node-id"))
+        {
+            var _nodeId = substrings[length - 1].Split(new string[] { "?node-id=" }, StringSplitOptions.RemoveEmptyEntries)[1];
+            var fileWithNodeApiUrl = String.Format(FileGetUrlWithNodeId, _fileName, _nodeId);
+            return (_fileName, _nodeId, fileWithNodeApiUrl);
+        }
+
+        var singleFileApiUrl = String.Format(FileGetUrl, _fileName);
+        return (_fileName, string.Empty, singleFileApiUrl);
     }
 
     [Serializable]
@@ -145,36 +139,16 @@ public class KumaDocumentDownloader : EditorWindow
                 // responseからaccess_tokenのみを取り出す。
                 var accessTokenFromFigma = JsonUtility.FromJson<AccessTokenFromFigma>(resultStr);
                 onAccessTokenReceived(accessTokenFromFigma.access_token);
+                yield break;
             }
+
+            Debug.LogError("get access token request failed, responseCode:" + req.responseCode + " reason:" + req.downloadHandler.text);
         }
     }
 
     // figmaからファイル情報を取得する。
-    private IEnumerator GetFileInformationFromFigma(string accessToken, string fileUrl, Action<string> onFileInfoReceived)
+    private IEnumerator GetFileInformationFromFigma(string accessToken, string apiURL, Action<string> onFileInfoReceived)
     {
-        // URLに応じてURLを調整する。
-        // TODO: これは事前にどうするといいのかわかりそうなもんだよな、、
-        var apiURL = string.Empty;
-        {
-            var substrings = fileUrl.Split('/');
-            var length = substrings.Length;
-
-            // node-idを含むURLの場合、URLを切り替える。
-            bool isNodeUrl = substrings[length - 1].Contains("node-id");
-
-            var _fileName = substrings[length - 2];
-
-            if (isNodeUrl)
-            {
-                var _nodeId = substrings[length - 1].Split(new string[] { "?node-id=" }, StringSplitOptions.RemoveEmptyEntries)[1];
-                apiURL = $"https://api.figma.com/v1/files/{_fileName}/nodes?ids={_nodeId}";
-            }
-            else
-            {
-                apiURL = $"https://api.figma.com/v1/files/{_fileName}";
-            }
-        }
-
         var form = new WWWForm();
         using (var req = UnityWebRequest.Get(apiURL))
         {
@@ -195,25 +169,30 @@ public class KumaDocumentDownloader : EditorWindow
             {
                 var result = req.downloadHandler.text;
                 onFileInfoReceived(result);
+                yield break;
             }
+
+            Debug.LogError("get file request failed, responseCode:" + req.responseCode + " reason:" + req.downloadHandler.text);
         }
     }
 
-    // figmaからファイル情報を取得するまで一連の処理を行う。
-    private void StartReceiving(string connectionId, string targetFileUrl)
+    private IEnumerator AccessToFigma(string apiUrl)
     {
+        // ここでconnectionIdを作り、このIDがついているレスポンスを待ち受ける。
+        var connectionId = UnityEngine.Random.Range(0, Int32.MaxValue).ToString();
+
+        // サーバを開始して待つ
         state = FigmaAccessState.GettingClientCode;
 
-        // アクセスを開始する。
-        StartEditorCoroutine(AccessToFigma(connectionId, targetFileUrl));
-    }
-
-    private IEnumerator AccessToFigma(string connectionId, string targetFileUrl)
-    {
         var clientCode = string.Empty;
 
         // clientCodeを取得する。
         {
+            var formattedOauthUrl = String.Format(ClientCodeUrl, ClientID, RedirectURI, connectionId);
+
+            // figmaをブラウザで開き、リクエストがリダイレクト先に到達するのを待つ。
+            Application.OpenURL(formattedOauthUrl);
+
             var waitResponse = true;
 
             using (var server = new HTTPServerForGettingClientCode(
@@ -284,7 +263,7 @@ public class KumaDocumentDownloader : EditorWindow
 
             var access = GetFileInformationFromFigma(
                 accessToken,
-                targetFileUrl,
+                apiUrl,
                 fileInfoStr =>
                 {
                     fileInfoJson = fileInfoStr;
@@ -304,7 +283,10 @@ public class KumaDocumentDownloader : EditorWindow
             }
 
             // TODO: fileUrlに対して情報が取得できたので、ローカルに保存する。
+            // 保存したものを名前で一覧読みできるといいな。そんでどうやって入力窓を作るか考えよう。
             Debug.Log("fileInfoJson:" + fileInfoJson);
+            var fileName = "aaa";
+            File.WriteAllText("Assets/Kumamate/Editor/Storage/" + fileName + ".json", fileInfoJson);
         }
         state = FigmaAccessState.Done;
     }
