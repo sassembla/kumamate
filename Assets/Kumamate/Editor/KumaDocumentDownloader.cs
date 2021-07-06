@@ -1,418 +1,482 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using Kumamate.MiniJSON;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Networking;
 
-/*
-    figmaへとkumamate appとしてアクセスし、次の手順でレイアウト情報を取得する。
-    1. figmaからクライアントコードを取得
-    2. 取得したクライアントコードを元に、figmaからaccessTokenを取得
-    3. accessTokenと取得したいfigma file URLから、レイアウト情報を取得
-
-    取得したものは保存しておいて、画面名から思い出しができるようにしておくと良さそう。
-*/
-public class KumaDocumentDownloader : EditorWindow
+namespace Kumamate
 {
-    private const int port = 9888;
 
-    private const string ClientID = "DfyB0kK2LiFeoa3cTyymAG";
-    private const string ClientSecret = "dgDSVcJzxkULNG6jaY0D68Ehl7tJ7g";
-    private const string RedirectURI = "https://sassembla.github.io/kumamate";
+    /*
+        figmaへとkumamate appとしてアクセスし、次の手順でレイアウト情報を取得する。
+        1. figmaからクライアントコードを取得
+        2. 取得したクライアントコードを元に、figmaからaccessTokenを取得
+        3. accessTokenと取得したいfigma file URLから、レイアウト情報を取得
 
-    private const string OAuthUrl = "https://www.figma.com/api/oauth/token?client_id={0}&client_secret={1}&redirect_uri={2}&code={3}&grant_type=authorization_code";
-    private const string ClientCodeUrl = "https://www.figma.com/oauth?client_id={0}&redirect_uri={1}&scope=file_read&state={2}&response_type=code";
-
-    private const string FileGetUrl = "https://api.figma.com/v1/files/{0}";
-    private const string FileGetUrlWithNodeId = "https://api.figma.com/v1/files/{0}/nodes?ids={1}";
-
-    private enum FigmaAccessState
+        取得したものは保存しておいて、画面名から思い出しができるようにしておくと良さそう。
+    */
+    public class KumaDocumentDownloader : EditorWindow
     {
-        None,
-        GettingClientCode,
-        GettingAccessToken,
-        GettingFileInfo,
-        Done,
+        private const int port = 9888;
 
-        GettingClientCodeFailed,
-        GettingAccessTokenFailed,
-        GettingFileInfoFailed,
-    }
+        private const string ClientID = "DfyB0kK2LiFeoa3cTyymAG";
+        private const string ClientSecret = "dgDSVcJzxkULNG6jaY0D68Ehl7tJ7g";
+        private const string RedirectURI = "https://sassembla.github.io/kumamate";
 
-    private static FigmaAccessState state = FigmaAccessState.None;
+        private const string ClientCodeUrl = "https://www.figma.com/oauth?client_id={0}&redirect_uri={1}&scope=file_read&state={2}&response_type=code";
+        private const string OAuthUrl = "https://www.figma.com/api/oauth/token?client_id={0}&client_secret={1}&redirect_uri={2}&code={3}&grant_type=authorization_code";
 
-    [MenuItem("Window/Kumamate")]
-    static void Open()
-    {
-        var window = (KumaDocumentDownloader)EditorWindow.GetWindow(typeof(KumaDocumentDownloader));
-        window.Show();
-    }
+        private const string FileGetUrl = "https://api.figma.com/v1/files/{0}";
+        private const string FileGetUrlWithNodeId = "https://api.figma.com/v1/files/{0}/nodes?ids={1}";
 
-    private string figmaFileUrl = "https://www.figma.com/file/EkwynraOS5tfbAyBBbflGE/Untitled?node-id=1%3A2";// TODO: 消す
-
-    // UI表示
-    void OnGUI()
-    {
-        figmaFileUrl = EditorGUILayout.TextField("Figma Share URL", figmaFileUrl);
-
-        // TODO: fileNameとかを取得してキャッシュさせたいが、うーん、、
-
-        if (GUILayout.Button("Get File Data From Share URL"))
+        private enum FigmaAccessState
         {
-            switch (state)
-            {
-                case FigmaAccessState.None:
-                case FigmaAccessState.Done:
-                case FigmaAccessState.GettingClientCodeFailed:
-                case FigmaAccessState.GettingAccessTokenFailed:
-                case FigmaAccessState.GettingFileInfoFailed:
-                    break;
-                case FigmaAccessState.GettingAccessToken:
-                    Debug.Log("アクセス中です。ブラウザでfigmaへのアクセスを許可するかどうかが出ているので、よく考えてから許可するか拒否してください。");
-                    return;
-                default:
-                    Debug.LogError("アクセス中です。");
-                    return;
-            }
+            None,
+            GettingClientCode,
+            GettingAccessToken,
+            GettingFileInfo,
+            Done,
 
-            // TODO: これは事前にどうするといいのかわかりそうなもんだよな、、ファイルキャッシュとかができればそれを元になんとかしたい。
-            var (fileName, nodeId, apiUrl) = ParseFigmaShareURL(figmaFileUrl);
-
-            // アクセスを開始する。
-            StartEditorCoroutine(AccessToFigma(apiUrl));
-        }
-    }
-
-    // figma share URLからfileNameや取得用のAPI URLを取得する。
-    private (string fileName, string nodeId, string apiUrl) ParseFigmaShareURL(string shareUrl)
-    {
-        var substrings = figmaFileUrl.Split('/');
-        var length = substrings.Length;
-
-        var _fileName = substrings[length - 2];
-
-        // node-idを含むURLの場合、URLを切り替える。
-        if (substrings[length - 1].Contains("node-id"))
-        {
-            var _nodeId = substrings[length - 1].Split(new string[] { "?node-id=" }, StringSplitOptions.RemoveEmptyEntries)[1];
-            var fileWithNodeApiUrl = String.Format(FileGetUrlWithNodeId, _fileName, _nodeId);
-            return (_fileName, _nodeId, fileWithNodeApiUrl);
+            GettingClientCodeFailed,
+            GettingAccessTokenFailed,
+            GettingFileInfoFailed,
         }
 
-        var singleFileApiUrl = String.Format(FileGetUrl, _fileName);
-        return (_fileName, string.Empty, singleFileApiUrl);
-    }
+        private static FigmaAccessState state = FigmaAccessState.None;
 
-    [Serializable]
-    private class AccessTokenFromFigma
-    {
-        [SerializeField] public string access_token;
-    }
-
-    private IEnumerator RequestAccessToFigma(string clientCode, Action<string> onAccessTokenReceived)
-    {
-        var form = new WWWForm();
-        var request = String.Format(OAuthUrl, ClientID, ClientSecret, RedirectURI, clientCode);
-        using (var req = UnityWebRequest.Post(request, form))
+        [MenuItem("Window/Kumamate")]
+        static void Open()
         {
-            req.SendWebRequest();
-
-            while (!req.isDone)
-            {
-                yield return null;
-            }
-
-            if (req.result == UnityWebRequest.Result.ConnectionError || req.result == UnityWebRequest.Result.DataProcessingError)
-            {
-                Debug.LogError("figmaからaccessTokenを取得するのに失敗した:" + req.error);
-                yield break;
-            }
-
-            if (req.responseCode == 200)
-            {
-                var resultStr = req.downloadHandler.text;
-
-                // responseからaccess_tokenのみを取り出す。
-                var accessTokenFromFigma = JsonUtility.FromJson<AccessTokenFromFigma>(resultStr);
-                onAccessTokenReceived(accessTokenFromFigma.access_token);
-                yield break;
-            }
-
-            Debug.LogError("get access token request failed, responseCode:" + req.responseCode + " reason:" + req.downloadHandler.text);
+            var window = (KumaDocumentDownloader)EditorWindow.GetWindow(typeof(KumaDocumentDownloader));
+            window.Show();
         }
-    }
 
-    // figmaからファイル情報を取得する。
-    private IEnumerator GetFileInformationFromFigma(string accessToken, string apiURL, Action<string> onFileInfoReceived)
-    {
-        var form = new WWWForm();
-        using (var req = UnityWebRequest.Get(apiURL))
+        private string figmaFileUrl = "https://www.figma.com/file/EkwynraOS5tfbAyBBbflGE/Untitled?node-id=1%3A2";// TODO: 消す
+
+        // UI表示
+        void OnGUI()
         {
-            req.SetRequestHeader("Authorization", $"Bearer {accessToken}");
-            req.SendWebRequest();
-            while (!req.isDone)
+            figmaFileUrl = EditorGUILayout.TextField("Figma Share URL", figmaFileUrl);
+
+            // frame単位でjsonにして書き出す。
+            if (GUILayout.Button("Get File Data From Share URL"))
             {
-                yield return null;
-            }
-
-            if (req.result == UnityWebRequest.Result.ConnectionError || req.result == UnityWebRequest.Result.DataProcessingError)
-            {
-                Debug.LogError("figmaからファイル情報を取得するのに失敗した:" + req.error);
-                yield break;
-            }
-
-            if (req.responseCode == 200)
-            {
-                var result = req.downloadHandler.text;
-                onFileInfoReceived(result);
-                yield break;
-            }
-
-            Debug.LogError("get file request failed, responseCode:" + req.responseCode + " reason:" + req.downloadHandler.text);
-        }
-    }
-
-    private IEnumerator AccessToFigma(string apiUrl)
-    {
-        // ここでconnectionIdを作り、このIDがついているレスポンスを待ち受ける。
-        var connectionId = UnityEngine.Random.Range(0, Int32.MaxValue).ToString();
-
-        // サーバを開始して待つ
-        state = FigmaAccessState.GettingClientCode;
-
-        var clientCode = string.Empty;
-
-        // clientCodeを取得する。
-        {
-            var formattedOauthUrl = String.Format(ClientCodeUrl, ClientID, RedirectURI, connectionId);
-
-            // figmaをブラウザで開き、リクエストがリダイレクト先に到達するのを待つ。
-            Application.OpenURL(formattedOauthUrl);
-
-            var waitResponse = true;
-
-            using (var server = new HTTPServerForGettingClientCode(
-                connectionId,
-                clientCodeStr =>
+                switch (state)
                 {
-                    // クライアントコードを受け取ったので待ちを終了する。
-                    clientCode = clientCodeStr;
-                    waitResponse = false;
+                    case FigmaAccessState.None:
+                    case FigmaAccessState.Done:
+                    case FigmaAccessState.GettingClientCodeFailed:
+                    case FigmaAccessState.GettingAccessTokenFailed:
+                    case FigmaAccessState.GettingFileInfoFailed:
+                        break;
+                    case FigmaAccessState.GettingAccessToken:
+                        Debug.Log("アクセス中です。ブラウザでfigmaへのアクセスを許可するかどうかが出ているので、よく考えてから許可するか拒否してください。");
+                        return;
+                    default:
+                        Debug.LogError("アクセス中です。");
+                        return;
                 }
-            ))
-            {
-                // サーバの開始
-                server.Start("http://+:" + port + "/");
 
-                // レスポンスを受け取るか、最大3分待つ。
-                var startTime = DateTime.UtcNow;
-                while (waitResponse)
+                // TODO: これは事前にどうするといいのかわかりそうなもんだよな、、ファイルキャッシュとかができればそれを元になんとかしたい。
+                var (fileName, nodeId, apiUrl) = ParseFigmaShareURL(figmaFileUrl);
+
+                // アクセスを開始する。
+                StartEditorCoroutine(AccessToFigma(apiUrl));
+            }
+        }
+
+        // figma share URLからfileNameや取得用のAPI URLを取得する。
+        private (string fileName, string nodeId, string apiUrl) ParseFigmaShareURL(string shareUrl)
+        {
+            var substrings = figmaFileUrl.Split('/');
+            var length = substrings.Length;
+
+            var _fileName = substrings[length - 2];
+
+            // node-idを含むURLの場合、URLを切り替える。
+            if (substrings[length - 1].Contains("node-id"))
+            {
+                var _nodeId = substrings[length - 1].Split(new string[] { "?node-id=" }, StringSplitOptions.RemoveEmptyEntries)[1];
+                var fileWithNodeApiUrl = String.Format(FileGetUrlWithNodeId, _fileName, _nodeId);
+                return (_fileName, _nodeId, fileWithNodeApiUrl);
+            }
+
+            var singleFileApiUrl = String.Format(FileGetUrl, _fileName);
+            return (_fileName, string.Empty, singleFileApiUrl);
+        }
+
+        [Serializable]
+        private class AccessTokenFromFigma
+        {
+            [SerializeField] public string access_token;
+        }
+
+        private IEnumerator RequestAccessToFigma(string clientCode, Action<string> onAccessTokenReceived)
+        {
+            var form = new WWWForm();
+            var request = String.Format(OAuthUrl, ClientID, ClientSecret, RedirectURI, clientCode);
+            using (var req = UnityWebRequest.Post(request, form))
+            {
+                req.SendWebRequest();
+
+                while (!req.isDone)
                 {
-                    if (3 < (DateTime.UtcNow - startTime).TotalMinutes)
-                    {
-                        waitResponse = false;
-                        state = FigmaAccessState.GettingAccessTokenFailed;
-                        Debug.LogError("3分経過してもfigmaからClientCodeが取得できなかったため、Editor上のサーバを停止する。");
-                        yield break;
-                    }
                     yield return null;
                 }
-            }
 
-            if (string.IsNullOrEmpty(clientCode))
-            {
-                state = FigmaAccessState.GettingAccessTokenFailed;
-                Debug.LogError("figmaから取得したレスポンスが異常だったため、Editor上のサーバを停止する。");
-                yield break;
-            }
-        }
-
-        // accessTokenを取得する。
-        state = FigmaAccessState.GettingAccessToken;
-        var accessToken = string.Empty;
-        {
-            var access = RequestAccessToFigma(
-                clientCode,
-                token =>
+                if (req.result == UnityWebRequest.Result.ConnectionError || req.result == UnityWebRequest.Result.DataProcessingError)
                 {
-                    accessToken = token;
+                    Debug.LogError("figmaからaccessTokenを取得するのに失敗した:" + req.error);
+                    yield break;
                 }
-            );
 
-            while (access.MoveNext())
-            {
-                yield return null;
-            }
-
-            if (string.IsNullOrEmpty(accessToken))
-            {
-                state = FigmaAccessState.GettingAccessTokenFailed;
-                Debug.LogError("失敗4 accessTokenの取得に失敗した");
-                yield break;
-            }
-        }
-
-        // ファイル情報を取得する。
-        state = FigmaAccessState.GettingFileInfo;
-        {
-            var fileInfoJson = string.Empty;
-
-            var access = GetFileInformationFromFigma(
-                accessToken,
-                apiUrl,
-                fileInfoStr =>
+                if (req.responseCode == 200)
                 {
-                    fileInfoJson = fileInfoStr;
+                    var resultStr = req.downloadHandler.text;
+
+                    // responseからaccess_tokenのみを取り出す。
+                    var accessTokenFromFigma = JsonUtility.FromJson<AccessTokenFromFigma>(resultStr);
+                    onAccessTokenReceived(accessTokenFromFigma.access_token);
+                    yield break;
                 }
-            );
 
-            while (access.MoveNext())
-            {
-                yield return null;
+                Debug.LogError("get access token request failed, responseCode:" + req.responseCode + " reason:" + req.downloadHandler.text);
             }
-
-            if (string.IsNullOrEmpty(fileInfoJson))
-            {
-                state = FigmaAccessState.GettingFileInfoFailed;
-                Debug.LogError("失敗5 ファイル情報の取得に失敗した");
-                yield break;
-            }
-
-            // TODO: fileUrlに対して情報が取得できたので、ローカルに保存する。
-            // 保存したものを名前で一覧読みできるといいな。そんでどうやって入力窓を作るか考えよう。
-            Debug.Log("fileInfoJson:" + fileInfoJson);
-            var fileName = "aaa";
-            File.WriteAllText("Assets/Kumamate/Editor/Storage/" + fileName + ".json", fileInfoJson);
-        }
-        state = FigmaAccessState.Done;
-    }
-
-
-
-    // Editorで使えるCoroutineのStart関数
-    private static void StartEditorCoroutine(IEnumerator cor)
-    {
-        EditorApplication.CallbackFunction coroutineAct = null;
-        coroutineAct = () =>
-        {
-            if (!cor.MoveNext())
-            {
-                EditorApplication.update -= coroutineAct;// 取り除く
-            }
-        };
-
-        EditorApplication.update += coroutineAct;
-    }
-
-    private static HTTPServerForGettingClientCode server;
-}
-
-public class HTTPServerForGettingClientCode : IDisposable
-{
-    private readonly string connectionId;
-    private readonly Action<string> onClientCodeReceived;
-    public HTTPServerForGettingClientCode(string connectionId, Action<string> onClientCodeReceived)
-    {
-        this.connectionId = connectionId;
-        this.onClientCodeReceived = onClientCodeReceived;
-    }
-
-    private HttpListener listener;
-    private bool disposedValue;
-
-    public void Start(params string[] prefixes)
-    {
-        listener = new HttpListener();
-        foreach (var prefix in prefixes)
-        {
-            listener.Prefixes.Add(prefix);
         }
 
-        listener.Start();
-        listener.BeginGetContext(OnRequested, null);
-    }
-
-    private void OnRequested(IAsyncResult ar)
-    {
-        if (!listener.IsListening)
+        // figmaからファイル情報を取得する。
+        private IEnumerator GetFileInformationFromFigma(string accessToken, string apiURL, Action<string> onFileInfoReceived)
         {
-            return;
+            var form = new WWWForm();
+            using (var req = UnityWebRequest.Get(apiURL))
+            {
+                req.SetRequestHeader("Authorization", $"Bearer {accessToken}");
+                req.SendWebRequest();
+                while (!req.isDone)
+                {
+                    yield return null;
+                }
+
+                if (req.result == UnityWebRequest.Result.ConnectionError || req.result == UnityWebRequest.Result.DataProcessingError)
+                {
+                    Debug.LogError("figmaからファイル情報を取得するのに失敗した:" + req.error);
+                    yield break;
+                }
+
+                if (req.responseCode == 200)
+                {
+                    var result = req.downloadHandler.text;
+                    onFileInfoReceived(result);
+                    yield break;
+                }
+
+                Debug.LogError("get file request failed, responseCode:" + req.responseCode + " reason:" + req.downloadHandler.text);
+            }
         }
 
-        var context = listener.EndGetContext(ar);
-        listener.BeginGetContext(OnRequested, listener);
-
-        try
+        private IEnumerator AccessToFigma(string apiUrl)
         {
-            // get accessのみを受け付ける
-            if (ProcessGetRequest(context))
+            // ここでconnectionIdを作り、このIDがついているレスポンスを待ち受ける。
+            var connectionId = UnityEngine.Random.Range(0, Int32.MaxValue).ToString();
+
+            // サーバを開始して待つ
+            state = FigmaAccessState.GettingClientCode;
+
+            var clientCode = string.Empty;
+
+            // clientCodeを取得する。
+            {
+                var formattedOauthUrl = String.Format(ClientCodeUrl, ClientID, RedirectURI, connectionId);
+
+                // figmaをブラウザで開き、リクエストがリダイレクト先に到達するのを待つ。
+                Application.OpenURL(formattedOauthUrl);
+
+                var waitResponse = true;
+
+                using (var server = new HTTPServerForGettingClientCode(
+                    connectionId,
+                    clientCodeStr =>
+                    {
+                        // クライアントコードを受け取ったので待ちを終了する。
+                        clientCode = clientCodeStr;
+                        waitResponse = false;
+                    }
+                ))
+                {
+                    // サーバの開始
+                    server.Start("http://+:" + port + "/");
+
+                    // レスポンスを受け取るか、最大3分待つ。
+                    var startTime = DateTime.UtcNow;
+                    while (waitResponse)
+                    {
+                        if (3 < (DateTime.UtcNow - startTime).TotalMinutes)
+                        {
+                            waitResponse = false;
+                            state = FigmaAccessState.GettingAccessTokenFailed;
+                            Debug.LogError("3分経過してもfigmaからClientCodeが取得できなかったため、Editor上のサーバを停止する。");
+                            yield break;
+                        }
+                        yield return null;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(clientCode))
+                {
+                    state = FigmaAccessState.GettingAccessTokenFailed;
+                    Debug.LogError("figmaから取得したレスポンスが異常だったため、Editor上のサーバを停止する。");
+                    yield break;
+                }
+            }
+
+            // accessTokenを取得する。
+            state = FigmaAccessState.GettingAccessToken;
+            var accessToken = string.Empty;
+            {
+                var access = RequestAccessToFigma(
+                    clientCode,
+                    token =>
+                    {
+                        accessToken = token;
+                    }
+                );
+
+                while (access.MoveNext())
+                {
+                    yield return null;
+                }
+
+                if (string.IsNullOrEmpty(accessToken))
+                {
+                    state = FigmaAccessState.GettingAccessTokenFailed;
+                    Debug.LogError("失敗4 accessTokenの取得に失敗した");
+                    yield break;
+                }
+            }
+
+            // ファイル情報を取得する。
+            state = FigmaAccessState.GettingFileInfo;
+            {
+                var fileInfoJson = string.Empty;
+
+                var access = GetFileInformationFromFigma(
+                    accessToken,
+                    apiUrl,
+                    fileInfoStr =>
+                    {
+                        fileInfoJson = fileInfoStr;
+                    }
+                );
+
+                while (access.MoveNext())
+                {
+                    yield return null;
+                }
+
+                if (string.IsNullOrEmpty(fileInfoJson))
+                {
+                    state = FigmaAccessState.GettingFileInfoFailed;
+                    Debug.LogError("失敗5 ファイル情報の取得に失敗した");
+                    yield break;
+                }
+
+                // 保存したものを名前で一覧読みできるといいな。そんでどうやって入力窓を作るか考えよう。
+                WriteFigmaLayoutFile(fileInfoJson);
+            }
+            state = FigmaAccessState.Done;
+        }
+
+
+
+        // Editorで使えるCoroutineのStart関数
+        private static void StartEditorCoroutine(IEnumerator cor)
+        {
+            EditorApplication.CallbackFunction coroutineAct = null;
+            coroutineAct = () =>
+            {
+                if (!cor.MoveNext())
+                {
+                    EditorApplication.update -= coroutineAct;// 取り除く
+                }
+            };
+
+            EditorApplication.update += coroutineAct;
+        }
+
+        private void WriteFigmaLayoutFile(string jsonStr)
+        {
+            var root = Json.Deserialize(jsonStr) as Dictionary<string, object>;
+            foreach (var item in root)
+            {
+                switch (item.Key)
+                {
+                    case "nodes":
+                        var nodes = root["nodes"] as Dictionary<string, object>;
+                        foreach (var node in nodes)
+                        {
+                            var nodeDict = node.Value as Dictionary<string, object>;
+                            foreach (var nodeItem in nodeDict)
+                            {
+                                var nodeKey = nodeItem.Key;
+                                switch (nodeKey)
+                                {
+                                    case "document":
+                                        var docDict = nodeItem.Value as Dictionary<string, object>;
+                                        var type = docDict["type"] as string;
+
+                                        // 書き出しを行う。
+                                        switch (type)
+                                        {
+                                            case "GROUP":// TODO: 名前が不明瞭
+                                            case "FRAME":
+                                            case "COMPONENT":
+                                                var topLevelFrame = FigmaFileDataReader.ReadFrame(docDict);
+                                                var topLevelFrameJsonStr = JsonUtility.ToJson(topLevelFrame);
+                                                var topLevelFrameFileName = topLevelFrame.id;
+                                                using (var sw = new StreamWriter("Assets/Kumamate/Editor/Storage/" + topLevelFrameFileName + ".json", false))
+                                                {
+                                                    sw.WriteLine(topLevelFrameJsonStr);
+                                                }
+                                                break;
+                                            case "CANVAS":
+                                                var frames = FigmaFileDataReader.ReadCanvas(docDict);
+                                                foreach (var frame in frames)
+                                                {
+                                                    var frameJsonStr = JsonUtility.ToJson(frame);
+                                                    var frameName = frame.id;
+                                                    using (var sw = new StreamWriter("Assets/Kumamate/Editor/Storage/" + frameName + ".json", false))
+                                                    {
+                                                        sw.WriteLine(frameJsonStr);
+                                                    }
+                                                }
+                                                break;
+                                            default:
+                                                Debug.LogError("unsupported type:" + type);
+                                                break;
+                                        }
+
+                                        break;
+                                    case "components":
+                                    case "schemaVersion":
+                                    case "styles":
+                                        break;
+                                }
+                            }
+                        }
+                        break;
+                }
+            }
+        }
+    }
+
+    public class HTTPServerForGettingClientCode : IDisposable
+    {
+        private readonly string connectionId;
+        private readonly Action<string> onClientCodeReceived;
+        public HTTPServerForGettingClientCode(string connectionId, Action<string> onClientCodeReceived)
+        {
+            this.connectionId = connectionId;
+            this.onClientCodeReceived = onClientCodeReceived;
+        }
+
+        private HttpListener listener;
+        private bool disposedValue;
+
+        public void Start(params string[] prefixes)
+        {
+            listener = new HttpListener();
+            foreach (var prefix in prefixes)
+            {
+                listener.Prefixes.Add(prefix);
+            }
+
+            listener.Start();
+            listener.BeginGetContext(OnRequested, null);
+        }
+
+        private void OnRequested(IAsyncResult ar)
+        {
+            if (!listener.IsListening)
             {
                 return;
             }
-        }
-        catch
-        {
-            // 何もしない
-        }
-    }
 
-    private bool ProcessGetRequest(HttpListenerContext context)
-    {
-        var request = context.Request;
-        if (request.HttpMethod == HttpMethod.Get.ToString())
-        {
-            // pass.
-        }
-        else
-        {
-            return false;
-        }
+            var context = listener.EndGetContext(ar);
+            listener.BeginGetContext(OnRequested, listener);
 
-        var url = request.Url.AbsoluteUri;
-
-        // url末尾がconnectionIDと一致するのを期待する。
-        if (url.EndsWith("state=" + connectionId))
-        {
-            // http://localhost:8080/?code=7rWbTAso632T0QPYyOo6jSUly&state=786217330
-            var codeAndStateQuery = url.Split('?');
-            if (codeAndStateQuery.Length != 2)
+            try
             {
-                Debug.LogError("失敗1 queryがない");
+                // get accessのみを受け付ける
+                if (ProcessGetRequest(context))
+                {
+                    return;
+                }
+            }
+            catch
+            {
+                // 何もしない
+            }
+        }
+
+        private bool ProcessGetRequest(HttpListenerContext context)
+        {
+            var request = context.Request;
+            if (request.HttpMethod == HttpMethod.Get.ToString())
+            {
+                // pass.
+            }
+            else
+            {
                 return false;
             }
 
-            // code=7rWbTAso632T0QPYyOo6jSUly&state=786217330
-            var queries = codeAndStateQuery[1].Split('&');
-            if (codeAndStateQuery.Length != 2)
+            var url = request.Url.AbsoluteUri;
+
+            // url末尾がconnectionIDと一致するのを期待する。
+            if (url.EndsWith("state=" + connectionId))
             {
-                Debug.LogError("失敗2 query数が足りない、必ず2つあるはず");
-                return false;
+                // http://localhost:8080/?code=7rWbTAso632T0QPYyOo6jSUly&state=786217330
+                var codeAndStateQuery = url.Split('?');
+                if (codeAndStateQuery.Length != 2)
+                {
+                    Debug.LogError("失敗1 queryがない");
+                    return false;
+                }
+
+                // code=7rWbTAso632T0QPYyOo6jSUly&state=786217330
+                var queries = codeAndStateQuery[1].Split('&');
+                if (codeAndStateQuery.Length != 2)
+                {
+                    Debug.LogError("失敗2 query数が足りない、必ず2つあるはず");
+                    return false;
+                }
+
+                var keyAndValue = queries[0].Split('=');
+                if (keyAndValue.Length != 2)
+                {
+                    Debug.LogError("失敗3 キーバリュー形式ではない文字列がきた");
+                    return false;
+                }
+
+                var clientCode = keyAndValue[1];
+
+                // clientCodeを返す
+                onClientCodeReceived(clientCode);
             }
 
-            var keyAndValue = queries[0].Split('=');
-            if (keyAndValue.Length != 2)
+            using (var response = context.Response)
             {
-                Debug.LogError("失敗3 キーバリュー形式ではない文字列がきた");
-                return false;
-            }
+                response.StatusCode = (int)HttpStatusCode.OK;
+                var outputStream = response.OutputStream;
 
-            var clientCode = keyAndValue[1];
-
-            // clientCodeを返す
-            onClientCodeReceived(clientCode);
-        }
-
-        using (var response = context.Response)
-        {
-            response.StatusCode = (int)HttpStatusCode.OK;
-            var outputStream = response.OutputStream;
-
-            // TODO: 閉じるボタンとかを実装したいが、できないのでは、、？
-            var buffer = @"
+                // TODO: 閉じるボタンとかを実装したいが、できないのでは、、？
+                var buffer = @"
 <!DOCTYPE html>
 <head>
 </head>
@@ -420,32 +484,33 @@ public class HTTPServerForGettingClientCode : IDisposable
 	figma to UnityEditor data transfer is finished. please close this tab manually.
 </body>
             ";
-            var bufferBytes = Encoding.UTF8.GetBytes(buffer);
-            outputStream.Write(bufferBytes, 0, bufferBytes.Length);
-        }
-
-        return true;
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (!disposedValue)
-        {
-            if (disposing)
-            {
-                // サーブをやめる
-                listener.Stop();
-                listener.Close();
+                var bufferBytes = Encoding.UTF8.GetBytes(buffer);
+                outputStream.Write(bufferBytes, 0, bufferBytes.Length);
             }
 
-            disposedValue = true;
+            return true;
         }
-    }
 
-    public void Dispose()
-    {
-        // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-        Dispose(disposing: true);
-        GC.SuppressFinalize(this);
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    // サーブをやめる
+                    listener.Stop();
+                    listener.Close();
+                }
+
+                disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
     }
 }
