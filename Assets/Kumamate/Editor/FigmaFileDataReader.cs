@@ -125,7 +125,7 @@ namespace Kumamate
             }
 
             var frame = new FigmaFrameData();
-            frame.Id = FileNameEscape.Escape(name, id);
+            frame.Identifier = FileNameConstructor.ConstructFileName(name, id);
             frame.AbsRect = rect;
             frame.Children.AddRange(childContents.ToArray());
 
@@ -268,7 +268,7 @@ namespace Kumamate
 
                         var contentWithText = new FigmaContent();
                         contentWithText.Type = type;
-                        contentWithText.Id = FileNameEscape.Escape(name, id);
+                        contentWithText.Id = FileNameConstructor.ConstructFileName(name, id);
                         contentWithText.AbsRect = rect;
                         contentWithText.Children.AddRange(childContents.ToArray());
                         contentWithText.Text = text;
@@ -330,7 +330,7 @@ namespace Kumamate
 
                         var contentWithRect = new FigmaContent();
                         contentWithRect.Type = type;
-                        contentWithRect.Id = FileNameEscape.Escape(name, id);
+                        contentWithRect.Id = FileNameConstructor.ConstructFileName(name, id);
                         contentWithRect.AbsRect = rect;
                         contentWithRect.Children.AddRange(childContents.ToArray());
                         contentWithRect.Rectangle = rectangle;
@@ -342,7 +342,7 @@ namespace Kumamate
                     var content = new FigmaContent();
                     // type, name, id, rect, childContents.ToArray()
                     content.Type = type;
-                    content.Id = FileNameEscape.Escape(name, id);
+                    content.Id = FileNameConstructor.ConstructFileName(name, id);
                     content.AbsRect = rect;
                     content.Children.AddRange(childContents.ToArray());
                     return content;

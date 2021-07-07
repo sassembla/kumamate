@@ -330,27 +330,29 @@ namespace Kumamate
                                     case "document":
                                         var docDict = nodeItem.Value as Dictionary<string, object>;
                                         var type = docDict["type"] as string;
-
                                         // 書き出しを行う。
                                         switch (type)
                                         {
-                                            case "GROUP":// TODO: 名前が不明瞭
+                                            // このあたりは総じてframeとして扱う。figma上でも特に区別されているわけでもない。
                                             case "FRAME":
                                             case "COMPONENT":
                                                 var topLevelFrame = FigmaFileDataReader.ReadFrame(docDict);
-                                                var topLevelFrameFileName = topLevelFrame.Id;
+                                                var topLevelFrameFileName = topLevelFrame.Identifier;
                                                 WriteToFile(topLevelFrame, topLevelFrameFileName);
                                                 break;
+                                            // canvas/groupは複数のframe類を内包することがあり、分解して各frameを起点とした座標系を持つようにしている。
+                                            // そうしないとものすごい規模の座標値がくる。
                                             case "CANVAS":
+                                            case "GROUP":
                                                 var frames = FigmaFileDataReader.ReadCanvas(docDict);
                                                 foreach (var frame in frames)
                                                 {
-                                                    var frameFileName = frame.Id;
+                                                    var frameFileName = frame.Identifier;
                                                     WriteToFile(frame, frameFileName);
                                                 }
                                                 break;
                                             default:
-                                                Debug.LogError("unsupported type:" + type);
+                                                Debug.LogError("unsupported toplevel type:" + type);
                                                 break;
                                         }
 
