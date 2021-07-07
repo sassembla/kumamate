@@ -5,6 +5,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using Google.Protobuf;
 using Kumamate.MiniJSON;
 using UnityEditor;
 using UnityEngine;
@@ -337,23 +338,15 @@ namespace Kumamate
                                             case "FRAME":
                                             case "COMPONENT":
                                                 var topLevelFrame = FigmaFileDataReader.ReadFrame(docDict);
-                                                var topLevelFrameJsonStr = JsonUtility.ToJson(topLevelFrame);
-                                                var topLevelFrameFileName = topLevelFrame.id;
-                                                using (var sw = new StreamWriter("Assets/Kumamate/Editor/Storage/" + topLevelFrameFileName + ".json", false))
-                                                {
-                                                    sw.WriteLine(topLevelFrameJsonStr);
-                                                }
+                                                var topLevelFrameFileName = topLevelFrame.Id;
+                                                WriteToFile(topLevelFrame, topLevelFrameFileName);
                                                 break;
                                             case "CANVAS":
                                                 var frames = FigmaFileDataReader.ReadCanvas(docDict);
                                                 foreach (var frame in frames)
                                                 {
-                                                    var frameJsonStr = JsonUtility.ToJson(frame);
-                                                    var frameName = frame.id;
-                                                    using (var sw = new StreamWriter("Assets/Kumamate/Editor/Storage/" + frameName + ".json", false))
-                                                    {
-                                                        sw.WriteLine(frameJsonStr);
-                                                    }
+                                                    var frameFileName = frame.Id;
+                                                    WriteToFile(frame, frameFileName);
                                                 }
                                                 break;
                                             default:
@@ -371,6 +364,23 @@ namespace Kumamate
                         }
                         break;
                 }
+            }
+        }
+
+        private void WriteToFile(FigmaFrameData topLevelFrame, string topLevelFrameFileName)
+        {
+            // デバッグ用のjson出力
+            // using (var sw = new StreamWriter("test"))
+            // {
+            //     sw.WriteLine(topLevelFrame.ToString());
+            // }
+
+            // ファイルとして出力する。
+            var buffer = new byte[topLevelFrame.CalculateSize()];
+            using (var output = new CodedOutputStream(buffer))
+            {
+                topLevelFrame.WriteTo(output);
+                File.WriteAllBytes("Assets/Kumamate/Editor/Storage/" + topLevelFrameFileName + ".kumamate", buffer);
             }
         }
     }

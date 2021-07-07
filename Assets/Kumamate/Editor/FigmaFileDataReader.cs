@@ -102,8 +102,13 @@ namespace Kumamate
 
             var absoluteBoundingBox = frameDict["absoluteBoundingBox"] as Dictionary<string, object>;
             var absRect = ReadAbsBoundingBox(absoluteBoundingBox);
-            var startPosDiff = new Vector2(absRect.x, absRect.y);
-            var rect = new FigmaRect(0f, 0f, absRect.width, absRect.height);
+            var startPosDiff = new Vector2(absRect.X, absRect.Y);
+
+            var rect = new FigmaRect();
+            rect.X = 0f;
+            rect.Y = 0f;
+            rect.Width = absRect.Width;
+            rect.Height = absRect.Height;
 
             var childContents = new List<FigmaContent>();
 
@@ -119,7 +124,12 @@ namespace Kumamate
                 }
             }
 
-            return new FigmaFrameData(name, id, rect, childContents.ToArray());
+            var frame = new FigmaFrameData();
+            frame.Id = FileNameEscape.Escape(name, id);
+            frame.AbsRect = rect;
+            frame.Children.AddRange(childContents.ToArray());
+
+            return frame;
         }
 
         // frameの下の要素を読んでいく
@@ -132,7 +142,11 @@ namespace Kumamate
             var absRect = ReadAbsBoundingBox(absoluteBoundingBox);
 
             // uGUIでは、yの値は-が下なので-に変換している。
-            var rect = new FigmaRect(absRect.x - startPosDiff.x, -(absRect.y - startPosDiff.y), absRect.width, absRect.height);
+            var rect = new FigmaRect();
+            rect.X = absRect.X - startPosDiff.x;
+            rect.Y = -(absRect.Y - startPosDiff.y);
+            rect.Width = absRect.Width;
+            rect.Height = absRect.Height;
 
             var type = contentDict["type"] as string;
 
@@ -242,8 +256,24 @@ namespace Kumamate
                             }
                         }
 
-                        var text = new FigmaText(characters, fontPostScriptName, fontSize, lineHeightPercent, r, g, b, a);
-                        return new FigmaContent(type, name, id, rect, childContents.ToArray(), text);
+                        var text = new FigmaText();
+                        text.Characters = characters;
+                        text.FontPostScriptName = fontPostScriptName;
+                        text.FontSize = fontSize;
+                        text.LineHeightPercent = lineHeightPercent;
+                        text.R = r;
+                        text.G = g;
+                        text.B = b;
+                        text.A = a;
+
+                        var contentWithText = new FigmaContent();
+                        contentWithText.Type = type;
+                        contentWithText.Id = FileNameEscape.Escape(name, id);
+                        contentWithText.AbsRect = rect;
+                        contentWithText.Children.AddRange(childContents.ToArray());
+                        contentWithText.Text = text;
+
+                        return contentWithText;
                     }
                 case "RECTANGLE":
                     {
@@ -292,12 +322,30 @@ namespace Kumamate
                                     break;
                             }
                         }
-                        var rectangle = new FigmaRectangle(r, g, b, a);
-                        return new FigmaContent(type, name, id, rect, childContents.ToArray(), rectangle);
+                        var rectangle = new FigmaRectangle();
+                        rectangle.R = r;
+                        rectangle.G = g;
+                        rectangle.B = b;
+                        rectangle.A = a;
+
+                        var contentWithRect = new FigmaContent();
+                        contentWithRect.Type = type;
+                        contentWithRect.Id = FileNameEscape.Escape(name, id);
+                        contentWithRect.AbsRect = rect;
+                        contentWithRect.Children.AddRange(childContents.ToArray());
+                        contentWithRect.Rectangle = rectangle;
+
+                        return contentWithRect;
                     }
                 default:
                     // Debug.Log("type:" + type);
-                    return new FigmaContent(type, name, id, rect, childContents.ToArray());
+                    var content = new FigmaContent();
+                    // type, name, id, rect, childContents.ToArray()
+                    content.Type = type;
+                    content.Id = FileNameEscape.Escape(name, id);
+                    content.AbsRect = rect;
+                    content.Children.AddRange(childContents.ToArray());
+                    return content;
             }
         }
 
@@ -307,7 +355,12 @@ namespace Kumamate
             var y = Convert.ToSingle(boundingBoxDict["y"]);
             var width = Convert.ToSingle(boundingBoxDict["width"]);
             var height = Convert.ToSingle(boundingBoxDict["height"]);
-            return new FigmaRect(x, y, width, height);
+            var figmaRect = new FigmaRect();
+            figmaRect.X = x;
+            figmaRect.Y = y;
+            figmaRect.Width = width;
+            figmaRect.Height = height;
+            return figmaRect;
         }
 
         // 一つ~複数のframe要素を含んでいるcanvas要素を読んでいく

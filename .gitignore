@@ -6,3 +6,4 @@ Assembly-CSharp-Editor.csproj
 kumamate.sln
 Logs/*
 Assets/Kumamate/Editor/Storage/*
+*.DS_Store
