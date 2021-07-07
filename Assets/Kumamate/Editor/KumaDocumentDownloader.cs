@@ -22,7 +22,7 @@ namespace Kumamate
 
         取得したものは保存しておいて、画面名から思い出しができるようにしておくと良さそう。
     */
-    public class KumaDocumentDownloader : EditorWindow
+    public class KumaDocumentDownloader
     {
         private const int port = 9888;
 
@@ -51,51 +51,36 @@ namespace Kumamate
 
         private static FigmaAccessState state = FigmaAccessState.None;
 
-        [MenuItem("Window/Kumamate")]
-        static void Open()
+        public static void StartDownload(string figmaFileUrl)
         {
-            var window = (KumaDocumentDownloader)EditorWindow.GetWindow(typeof(KumaDocumentDownloader));
-            window.Show();
-        }
-
-        private string figmaFileUrl = "https://www.figma.com/file/EkwynraOS5tfbAyBBbflGE/Untitled?node-id=1%3A2";// TODO: 消す
-
-        // UI表示
-        void OnGUI()
-        {
-            figmaFileUrl = EditorGUILayout.TextField("Figma Share URL", figmaFileUrl);
-
-            // frame単位でjsonにして書き出す。
-            if (GUILayout.Button("Get File Data From Share URL"))
+            switch (state)
             {
-                switch (state)
-                {
-                    case FigmaAccessState.None:
-                    case FigmaAccessState.Done:
-                    case FigmaAccessState.GettingClientCodeFailed:
-                    case FigmaAccessState.GettingAccessTokenFailed:
-                    case FigmaAccessState.GettingFileInfoFailed:
-                        break;
-                    case FigmaAccessState.GettingAccessToken:
-                        Debug.Log("アクセス中です。ブラウザでfigmaへのアクセスを許可するかどうかが出ているので、よく考えてから許可するか拒否してください。");
-                        return;
-                    default:
-                        Debug.LogError("アクセス中です。");
-                        return;
-                }
-
-                // TODO: これは事前にどうするといいのかわかりそうなもんだよな、、ファイルキャッシュとかができればそれを元になんとかしたい。
-                var (fileName, nodeId, apiUrl) = ParseFigmaShareURL(figmaFileUrl);
-
-                // アクセスを開始する。
-                StartEditorCoroutine(AccessToFigma(apiUrl));
+                case FigmaAccessState.None:
+                case FigmaAccessState.Done:
+                case FigmaAccessState.GettingClientCodeFailed:
+                case FigmaAccessState.GettingAccessTokenFailed:
+                case FigmaAccessState.GettingFileInfoFailed:
+                    break;
+                case FigmaAccessState.GettingAccessToken:
+                    Debug.Log("アクセス中です。ブラウザでfigmaへのアクセスを許可するかどうかが出ているので、よく考えてから許可するか拒否してください。");
+                    return;
+                default:
+                    Debug.LogError("アクセス中です。");
+                    return;
             }
+
+            // TODO: これは事前にどうするといいのかわかりそうなもんだよな、、ファイルキャッシュとかができればそれを元になんとかしたい。
+            var (fileName, nodeId, apiUrl) = ParseFigmaShareURL(figmaFileUrl);
+
+            // アクセスを開始する。
+            StartEditorCoroutine(AccessToFigma(apiUrl));
         }
+
 
         // figma share URLからfileNameや取得用のAPI URLを取得する。
-        private (string fileName, string nodeId, string apiUrl) ParseFigmaShareURL(string shareUrl)
+        private static (string fileName, string nodeId, string apiUrl) ParseFigmaShareURL(string shareUrl)
         {
-            var substrings = figmaFileUrl.Split('/');
+            var substrings = shareUrl.Split('/');
             var length = substrings.Length;
 
             var _fileName = substrings[length - 2];
@@ -112,13 +97,14 @@ namespace Kumamate
             return (_fileName, string.Empty, singleFileApiUrl);
         }
 
+        // figmaから取得したjsonからaccess_tokenを取り出すための内部型
         [Serializable]
         private class AccessTokenFromFigma
         {
             [SerializeField] public string access_token;
         }
 
-        private IEnumerator RequestAccessToFigma(string clientCode, Action<string> onAccessTokenReceived)
+        private static IEnumerator RequestAccessToFigma(string clientCode, Action<string> onAccessTokenReceived)
         {
             var form = new WWWForm();
             var request = String.Format(OAuthUrl, ClientID, ClientSecret, RedirectURI, clientCode);
@@ -152,7 +138,7 @@ namespace Kumamate
         }
 
         // figmaからファイル情報を取得する。
-        private IEnumerator GetFileInformationFromFigma(string accessToken, string apiURL, Action<string> onFileInfoReceived)
+        private static IEnumerator GetFileInformationFromFigma(string accessToken, string apiURL, Action<string> onFileInfoReceived)
         {
             var form = new WWWForm();
             using (var req = UnityWebRequest.Get(apiURL))
@@ -181,7 +167,7 @@ namespace Kumamate
             }
         }
 
-        private IEnumerator AccessToFigma(string apiUrl)
+        private static IEnumerator AccessToFigma(string apiUrl)
         {
             // ここでconnectionIdを作り、このIDがついているレスポンスを待ち受ける。
             var connectionId = UnityEngine.Random.Range(0, Int32.MaxValue).ToString();
@@ -310,7 +296,7 @@ namespace Kumamate
             EditorApplication.update += coroutineAct;
         }
 
-        private void WriteFigmaLayoutFile(string jsonStr)
+        private static void WriteFigmaLayoutFile(string jsonStr)
         {
             var root = Json.Deserialize(jsonStr) as Dictionary<string, object>;
             foreach (var item in root)
@@ -369,7 +355,7 @@ namespace Kumamate
             }
         }
 
-        private void WriteToFile(FigmaFrameData topLevelFrame, string topLevelFrameFileName)
+        private static void WriteToFile(FigmaFrameData topLevelFrame, string topLevelFrameFileName)
         {
             // デバッグ用のjson出力
             // using (var sw = new StreamWriter("test"))
@@ -382,7 +368,7 @@ namespace Kumamate
             using (var output = new CodedOutputStream(buffer))
             {
                 topLevelFrame.WriteTo(output);
-                File.WriteAllBytes("Assets/Kumamate/Editor/Storage/" + topLevelFrameFileName + ".kumamate", buffer);
+                File.WriteAllBytes(KumaConstants.STORAGE_PATH + topLevelFrameFileName + KumaConstants.EXTENSION, buffer);
             }
         }
     }
