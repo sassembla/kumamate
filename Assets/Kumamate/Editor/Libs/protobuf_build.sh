@@ -1,0 +1,1 @@
+protoc --csharp_out=protobufout protobufout/kumamate_proto.proto
