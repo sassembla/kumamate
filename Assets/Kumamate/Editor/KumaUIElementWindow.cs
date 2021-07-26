@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using UnityEditor;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 // TODO: 実験中のクラス、最終的にはUIの生成を助けるロケーター穴の生成を大量に行い、セットアップして参照されているオブジェクトのあらゆる値を更新する。
@@ -6,7 +8,22 @@ public class KumaUIElementWindow : EditorWindow
 {
     public void OnEnable()
     {
-        // 一番外側のスクロール要素を出す
+        // とりあえずロードしてみる -> うまくいく、よかった
+        var tree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Assets/a.uxml");
+        rootVisualElement.Add(tree.CloneTree());
+
+        // 読み込んだ物体の中身を探索して名前やハンドラを入れていくことは可能っぽい。
+        foreach (var child in rootVisualElement.Children())
+        {
+            Debug.Log("child:" + child);
+        }
+
+
+    }
+
+    void Something()
+    {
+        // 一番外側のスクロール要素を出す、これをつけないと
         var scrollViewRoot = new ScrollView(ScrollViewMode.Vertical);
         scrollViewRoot.style.height = new StyleLength() { value = new Length(100f, LengthUnit.Percent) };
 
