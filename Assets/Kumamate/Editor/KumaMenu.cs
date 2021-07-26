@@ -19,7 +19,7 @@ namespace Kumamate
         private string figmaFileUrl = "https://www.figma.com/file/EkwynraOS5tfbAyBBbflGE/Untitled?node-id=1%3A2";// TODO: 消す
 
         // UI表示
-        // TODO: ここでUIElementsを試そう
+        // TODO: ここもなーそのうちUIElementsにするといいかもねー別に後でいいけど。
         void OnGUI()
         {
             figmaFileUrl = EditorGUILayout.TextField("Figma Share URL", figmaFileUrl);
@@ -31,29 +31,22 @@ namespace Kumamate
             }
 
             // TODO: 保存済みのファイルからファイル名一覧を読み出す
+            // ここからボタンを増やす？ちょっとUI考えないといけないけど、この名前のUIのプレビューとかが出せると超うれしいなあ、、まあ名前とかDLが終わったら即とかの方が体験が良さそう。
             if (GUILayout.Button("test read"))
             {
-                var currentCachedFileNames = new List<string>();
+                var currentCachedFileNames = new List<string>();// TODO: ここでは本来、リストを表示してユーザーがどの画面のレイアウトをしたいかを選ぶところにしたい。ところ。
 
                 var i = 0;
 
                 var files = Directory.GetFiles(KumaConstants.STORAGE_PATH).Where(p => p.EndsWith(KumaConstants.EXTENSION));
                 foreach (var file in files)
                 {
-                    // TODO: 適当
-                    if (i == 3)
+                    Debug.Log("file:" + file);
+                    // TODO: 適当に限定的な要素をみる
+                    if (i == 0)
                     {
-                        var name = Path.GetFileNameWithoutExtension(file);
-                        Debug.Log("name:" + name);
-
-                        // ここからボタンを増やす？ちょっとUI考えないといけないけど、この名前のUIのプレビューとかが出せると超うれしいなあ、、
-                        var bytes = File.ReadAllBytes(file);
-                        var frameData = FigmaFrameData.Parser.ParseFrom(bytes);
-                        Debug.Log("frameData:" + frameData.Identifier);
-
-                        var reader = new Reader(frameData);
-                        reader.Read();
-                        EditorWindow.GetWindow<KumaUIElementWindow>();
+                        var window = EditorWindow.GetWindow<KumaUIElementWindow>();
+                        window.Setup(file);
                         break;
                     }
                     i++;
@@ -63,41 +56,5 @@ namespace Kumamate
 
     }
 
-    public class Reader
-    {
-        private readonly FigmaFrameData frameData;
 
-        public Reader(FigmaFrameData frameData)
-        {
-            this.frameData = frameData;
-        }
-
-        internal void Read()
-        {
-            Debug.Log("frameData:" + ReadFigmaRect(frameData.AbsRect));
-            foreach (var child in frameData.Children)
-            {
-                Debug.Log("child:" + child.Id + " absRect:" + ReadFigmaRect(child.AbsRect));
-
-                // コンテンツ独自のパラメータの取り出し
-                switch (child.ContentCase)
-                {
-                    case FigmaContent.ContentOneofCase.Rectangle:
-                        var rectangle = child.Rectangle;
-                        break;
-                    case FigmaContent.ContentOneofCase.Text:
-                        var text = child.Text;
-                        break;
-                    case FigmaContent.ContentOneofCase.None:
-                        break;
-
-                }
-            }
-        }
-
-        private string ReadFigmaRect(FigmaRect figmaRect)
-        {
-            return "x:" + figmaRect.X + " y:" + figmaRect.Y + " w:" + figmaRect.Width + " h:" + figmaRect.Height;
-        }
-    }
 }
