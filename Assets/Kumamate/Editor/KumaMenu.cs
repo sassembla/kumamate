@@ -35,15 +35,69 @@ namespace Kumamate
             {
                 var currentCachedFileNames = new List<string>();
 
+                var i = 0;
+
                 var files = Directory.GetFiles(KumaConstants.STORAGE_PATH).Where(p => p.EndsWith(KumaConstants.EXTENSION));
-                // var fileCount = 
                 foreach (var file in files)
                 {
-                    var name = Path.GetFileNameWithoutExtension(file);
-                    Debug.Log("name:" + name);
-                    // ここからボタンを増やす？ちょっとUI考えないといけないけど、この名前のUIのプレビューとかが出せると超うれしいなあ、、
+                    // TODO: 適当
+                    if (i == 3)
+                    {
+                        var name = Path.GetFileNameWithoutExtension(file);
+                        Debug.Log("name:" + name);
+
+                        // ここからボタンを増やす？ちょっとUI考えないといけないけど、この名前のUIのプレビューとかが出せると超うれしいなあ、、
+                        var bytes = File.ReadAllBytes(file);
+                        var frameData = FigmaFrameData.Parser.ParseFrom(bytes);
+                        Debug.Log("frameData:" + frameData.Identifier);
+
+                        var reader = new Reader(frameData);
+                        reader.Read();
+                        EditorWindow.GetWindow<KumaUIElementWindow>();
+                        break;
+                    }
+                    i++;
                 }
             }
+        }
+
+    }
+
+    public class Reader
+    {
+        private readonly FigmaFrameData frameData;
+
+        public Reader(FigmaFrameData frameData)
+        {
+            this.frameData = frameData;
+        }
+
+        internal void Read()
+        {
+            Debug.Log("frameData:" + ReadFigmaRect(frameData.AbsRect));
+            foreach (var child in frameData.Children)
+            {
+                Debug.Log("child:" + child.Id + " absRect:" + ReadFigmaRect(child.AbsRect));
+
+                // コンテンツ独自のパラメータの取り出し
+                switch (child.ContentCase)
+                {
+                    case FigmaContent.ContentOneofCase.Rectangle:
+                        var rectangle = child.Rectangle;
+                        break;
+                    case FigmaContent.ContentOneofCase.Text:
+                        var text = child.Text;
+                        break;
+                    case FigmaContent.ContentOneofCase.None:
+                        break;
+
+                }
+            }
+        }
+
+        private string ReadFigmaRect(FigmaRect figmaRect)
+        {
+            return "x:" + figmaRect.X + " y:" + figmaRect.Y + " w:" + figmaRect.Width + " h:" + figmaRect.Height;
         }
     }
 }
