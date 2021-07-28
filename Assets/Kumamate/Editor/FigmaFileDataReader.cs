@@ -184,12 +184,12 @@ namespace Kumamate
                             switch (t.Key)
                             {
                                 case "characters":
-                                    characters = t.Value as string;
+                                    characters = t.Value as string ?? string.Empty;
                                     break;
                                 case "style":
                                     var styleDict = t.Value as Dictionary<string, object>;
 
-                                    fontPostScriptName = styleDict["fontPostScriptName"] as string;
+                                    fontPostScriptName = styleDict["fontPostScriptName"] as string ?? string.Empty;
                                     fontSize = Convert.ToInt32(styleDict["fontSize"]);
                                     lineHeightPercent = Convert.ToSingle(styleDict["lineHeightPercent"]);
                                     break;
@@ -337,8 +337,24 @@ namespace Kumamate
 
                         return contentWithRect;
                     }
+
+                case "ELLIPSE":
+                    var ellipseContent = new FigmaContent();
+                    foreach (var t in contentDict)
+                    {
+                        switch (t.Key)
+                        {
+                            default:
+                                Debug.Log("unhandled t.Key:" + t.Key);
+                                break;
+                        }
+                    }
+                    ellipseContent.Type = type;
+                    ellipseContent.Id = FileNameConstructor.ConstructFileName(name, id);
+                    ellipseContent.AbsRect = rect;
+                    ellipseContent.Children.AddRange(childContents.ToArray());
+                    return ellipseContent;
                 default:
-                    // Debug.Log("type:" + type);
                     var content = new FigmaContent();
                     // type, name, id, rect, childContents.ToArray()
                     content.Type = type;

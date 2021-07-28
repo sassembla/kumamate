@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using Kumamate;
 using UnityEditor;
@@ -32,13 +33,9 @@ public class KumaUIElementWindow : EditorWindow
     private void ReloadView(string filePath)
     {
         var name = Path.GetFileNameWithoutExtension(filePath);
-        Debug.Log("file name:" + name);
 
         var bytes = File.ReadAllBytes(filePath);
         var frameData = FigmaFrameData.Parser.ParseFrom(bytes);
-        // Debug.Log("frameData:" + frameData.Identifier);
-
-
 
         this.rootVisualElement.Clear();
 
@@ -74,10 +71,17 @@ public class KumaUIElementWindow : EditorWindow
 </ui:UXML>
         */
 
+        var baseRect = new FigmaRect()
+        {
+            X = 0,
+            Y = 0,
+            Width = 0,
+            Height = 0
+        };
         // ここから先でchildrenをガンガンレイアウトする。
         foreach (var child in frameData.Children)
         {
-            DoLayout(rootArea, new FigmaRect(), child);
+            DoLayout(rootArea, baseRect, child, 1);
             // Debug.Log("child:" + ReadFigmaRect(child.AbsRect) + " child-children:" + child.Children.Count);
         }
 
@@ -125,28 +129,52 @@ public class KumaUIElementWindow : EditorWindow
         // }
     }
 
-    private void DoLayout(VisualElement parent, FigmaRect parentRect, FigmaContent child)
+    private void DoLayout(VisualElement parent, FigmaRect parentRect, FigmaContent child, int depth)
     {
         var absPos = child.AbsRect;
         var relativePos = absPos.Minus(parentRect);
 
+        var lineWidth = 0.1f;
         var currentArea = new VisualElement();
         currentArea.style.position = new StyleEnum<Position>() { value = Position.Absolute };
         currentArea.style.left = new StyleLength() { value = new Length(relativePos.X, LengthUnit.Pixel) };
         currentArea.style.top = new StyleLength() { value = new Length(-relativePos.Y, LengthUnit.Pixel) };
-        currentArea.style.width = new StyleLength() { value = new Length(absPos.Width, LengthUnit.Pixel) };
-        currentArea.style.height = new StyleLength() { value = new Length(absPos.Height, LengthUnit.Pixel) };
+        currentArea.style.width = new StyleLength() { value = new Length(absPos.Width - lineWidth * 2, LengthUnit.Pixel) };
+        currentArea.style.height = new StyleLength() { value = new Length(absPos.Height - lineWidth * 2, LengthUnit.Pixel) };
 
         // TODO: ランダムにカラーをつけてるが、とりあえず不要な要素には色をつけないようにしたい。ここで除外するのが良さそう。
-        currentArea.style.backgroundColor = new StyleColor() { value = new Color(Random.Range(0f, 1f), ((byte)Random.Range(0f, 1f)), Random.Range(0f, 1f), 1f) };
-        currentArea.Add(new Label("n:" + child.Type));// TODO: 適当につけてる
-
+        currentArea.style.backgroundColor = new StyleColor() { value = new Color(UnityEngine.Random.Range(0f, 1f), ((byte)UnityEngine.Random.Range(0f, 1f)), UnityEngine.Random.Range(0f, 1f), 0.1f * depth) };
+        switch (child.Type)
+        {
+            case "INSTANCE":
+            case "FRAME":
+            case "TEXT":
+            case "RECTANGLE":
+            case "ELLIPSE":
+                currentArea.Add(new Label("type:" + child.Type));// TODO: 適当につけてる、ここが変わると良さそう
+                // var objField = new ObjectF
+                var borderColor = new StyleColor(Color.red);
+                currentArea.style.borderTopColor = borderColor;
+                currentArea.style.borderRightColor = borderColor;
+                currentArea.style.borderBottomColor = borderColor;
+                currentArea.style.borderLeftColor = borderColor;
+                currentArea.style.borderTopWidth = lineWidth;
+                currentArea.style.borderRightWidth = lineWidth;
+                currentArea.style.borderBottomWidth = lineWidth;
+                currentArea.style.borderLeftWidth = lineWidth;
+                break;
+            default:
+                // デフォは透明にする
+                currentArea.style.backgroundColor = new StyleColor() { value = new Color(UnityEngine.Random.Range(0f, 1f), ((byte)UnityEngine.Random.Range(0f, 1f)), UnityEngine.Random.Range(0f, 1f), 0f) };
+                break;
+        }
 
         parent.Add(currentArea);
 
+        depth = depth + 1;
         foreach (var cousin in child.Children)
         {
-            DoLayout(currentArea, absPos, cousin);
+            DoLayout(currentArea, absPos, cousin, depth);
         }
     }
 
@@ -161,12 +189,13 @@ public static class FigmaRectExtension
 {
     public static FigmaRect Minus(this FigmaRect target, FigmaRect minus)
     {
-        return new FigmaRect()
+        var result = new FigmaRect()
         {
             X = target.X - minus.X,
             Y = target.Y - minus.Y,
             Width = target.Width,
             Height = target.Height,
         };
+        return result;
     }
 }

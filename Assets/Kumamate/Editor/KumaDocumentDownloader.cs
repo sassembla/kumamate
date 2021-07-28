@@ -346,10 +346,17 @@ namespace Kumamate
                                     case "components":
                                     case "schemaVersion":
                                     case "styles":
+                                        // 要素を含まないため無視している
+                                        break;
+                                    default:
+                                        Debug.LogError("unsupported nodeKey:" + nodeKey);
                                         break;
                                 }
                             }
                         }
+                        break;
+                    default:
+                        // Debug.LogError("unsupported type:" + item.Key);
                         break;
                 }
             }
