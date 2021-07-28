@@ -1,8 +1,11 @@
 using System;
 using System.IO;
 using Kumamate;
+using TMPro;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.UIElements;
 
 // TODO: 実験中のクラス、最終的にはUIの生成を助けるロケーター穴の生成を大量に行い、セットアップして参照されているオブジェクトのあらゆる値を更新する。
@@ -129,6 +132,8 @@ public class KumaUIElementWindow : EditorWindow
         // }
     }
 
+    private static int currentDepth;
+
     private void DoLayout(VisualElement parent, FigmaRect parentRect, FigmaContent child, int depth)
     {
         var absPos = child.AbsRect;
@@ -142,8 +147,6 @@ public class KumaUIElementWindow : EditorWindow
         currentArea.style.width = new StyleLength() { value = new Length(absPos.Width - lineWidth * 2, LengthUnit.Pixel) };
         currentArea.style.height = new StyleLength() { value = new Length(absPos.Height - lineWidth * 2, LengthUnit.Pixel) };
 
-        // TODO: ランダムにカラーをつけてるが、とりあえず不要な要素には色をつけないようにしたい。ここで除外するのが良さそう。
-        currentArea.style.backgroundColor = new StyleColor() { value = new Color(UnityEngine.Random.Range(0f, 1f), ((byte)UnityEngine.Random.Range(0f, 1f)), UnityEngine.Random.Range(0f, 1f), 0.1f * depth) };
         switch (child.Type)
         {
             case "INSTANCE":
@@ -151,8 +154,83 @@ public class KumaUIElementWindow : EditorWindow
             case "TEXT":
             case "RECTANGLE":
             case "ELLIPSE":
-                currentArea.Add(new Label("type:" + child.Type));// TODO: 適当につけてる、ここが変わると良さそう
-                // var objField = new ObjectF
+                // カラーはランダムにしてるが、困ったら変えよう。
+                currentArea.style.color = new StyleColor() { value = new Color(UnityEngine.Random.Range(0f, 1f), ((byte)UnityEngine.Random.Range(0f, 1f)), UnityEngine.Random.Range(0f, 1f), 0.1f * depth) };
+                currentArea.style.backgroundColor = currentArea.style.color;
+
+
+                // var label = new Label("type:" + child.Type);
+                // currentArea.Add(label);// TODO: 適当につけてる、ここが変わると良さそう
+
+                // currentArea.RegisterCallback<DragPerformEvent>(a =>
+                // {
+                //     Debug.Log("a:" + a);// これだけ呼ばれないとか？ 呼ばれねえ-w なるほどどうして？ -> これはdrag「された側」が持ってないといけないコードだ、たぶん。
+                // });
+
+                // オブジェクトフィールド、あんまり使い心地がよくなかった。
+                // var objField = new ObjectField();
+                // objField.objectType = typeof(GameObject);
+                // objField.SetEnabled(true);
+                // objField.RegisterCallback<ChangeEvent<GameObject>>(changedObject =>
+                // {
+                //     Debug.Log("changedObject:" + changedObject);
+                // });
+                // objField.style.width = currentArea.style.width;
+                // objField.style.height = currentArea.style.height;
+                // // objField.style.backgroundColor = new StyleColor() { value = new Color(0f, 0f, 0f, 0f) };
+                // objField.style.backgroundImage = new StyleBackground() { value = new Background() };
+                // // objField.
+                // currentArea.Add(objField);
+
+
+                currentArea.RegisterCallback<DragEnterEvent>(
+                    a =>
+                    {
+                        // 選択中としてカラーを変更する
+                        currentArea.style.backgroundColor = new StyleColor() { value = new Color(currentArea.style.color.value.r + 0.3f, currentArea.style.color.value.g + 0.3f, currentArea.style.color.value.b + 0.3f, currentArea.style.color.value.a + 0.1f) };
+
+                        // 最も深い深度まで、depth情報を更新する。
+                        if (depth < currentDepth)
+                        {
+                            return;
+                        }
+                        currentDepth = depth;
+                    }
+                );
+                currentArea.RegisterCallback<DragLeaveEvent>(
+                    a =>
+                    {
+                        // 選択が終わったのでカラーを戻す
+                        currentArea.style.backgroundColor = currentArea.style.color;
+                        currentDepth = -1;
+                    }
+                );
+                currentArea.RegisterCallback<DragExitedEvent>(
+                    a =>
+                    {
+                        Debug.Log("here:" + DragAndDrop.objectReferences.Length + " current:" + a.target + " child:" + child.Id);// ここがレイヤー数分呼ばれるってことか。縦に貫通してるんだな。ってことは、一番上じゃないとダメ、ってやんなきゃだね。depthで上書きしよう。
+                        foreach (var dropedObjRef in DragAndDrop.objectReferences)
+                        {
+                            // レイアウトを合わせる
+                            if (dropedObjRef is GameObject go && currentDepth == depth)
+                            {
+                                AdoptLayout(go, child);
+
+                                // objField.value = go;// これは効くが、特にやらない方が良さそう。
+
+                                // D&Dが終わったので対象のオブジェクトを選択状態にする。
+                                // TODO: というのがしたいんだが、戻るの何、、、D&DのOnEndがありそうだな〜。
+                                // Selection.objects = new UnityEngine.Object[] { go };// これでもダメ
+                                // Selection.activeTransform = go.transform;
+                                // Selection.activeInstanceID = go.GetInstanceID();
+                            }
+                        }
+
+                        // カラーを戻す
+                        currentArea.style.backgroundColor = currentArea.style.color;
+                    }
+                );
+
                 var borderColor = new StyleColor(Color.red);
                 currentArea.style.borderTopColor = borderColor;
                 currentArea.style.borderRightColor = borderColor;
@@ -175,6 +253,50 @@ public class KumaUIElementWindow : EditorWindow
         foreach (var cousin in child.Children)
         {
             DoLayout(currentArea, absPos, cousin, depth);
+        }
+    }
+
+    // contentのレイアウトなどの情報をtargetに対して適応する。
+    private void AdoptLayout(GameObject target, FigmaContent content)
+    {
+        // 位置系は全てのオブジェクトで設定する。
+        if (target.TryGetComponent<RectTransform>(out var rectTrans))
+        {
+            var absPos = content.AbsRect;
+
+            // TODO: ここでアンカーを一瞬解除し、戻す、、ということがしたいが、うーん、、まあ頑張って計算するしかない。またか。
+            var baseAnchor = (rectTrans.anchorMin, rectTrans.anchorMax, rectTrans.pivot);
+
+            rectTrans.anchorMin = new Vector2(0, 1);
+            rectTrans.anchorMax = new Vector2(0, 1);
+            rectTrans.pivot = new Vector2(0, 1);
+            rectTrans.anchoredPosition = new Vector2(absPos.X * 3, absPos.Y * 3);
+            rectTrans.sizeDelta = new Vector2(absPos.Width * 3, absPos.Height * 3);
+
+            // rectTrans.anchorMin = baseAnchor.anchorMin;
+            // rectTrans.anchorMax = baseAnchor.anchorMax;
+            // rectTrans.pivot = baseAnchor.pivot;
+        }
+
+        switch (content.Type)
+        {
+            case "TEXT":
+                var textContent = content.Text;
+                if (target.TryGetComponent<Text>(out var textComponent))
+                {
+                    textComponent.text = textContent.Characters;
+                    textComponent.color = new Color(textContent.R, textContent.G, textContent.B, textContent.A);
+                    textComponent.fontSize = textContent.FontSize * 3;
+                    // TODO: フォントファミリーをどうするかなー、、
+                }
+                else if (target.TryGetComponent<TMP_Text>(out var tmpTextComponent))
+                {
+                    tmpTextComponent.text = textContent.Characters;
+                    tmpTextComponent.color = new Color(textContent.R, textContent.G, textContent.B, textContent.A);
+                    tmpTextComponent.fontSize = textContent.FontSize * 3;
+                    // TODO: フォントファミリーをどうするかなー、、
+                }
+                break;
         }
     }
 
