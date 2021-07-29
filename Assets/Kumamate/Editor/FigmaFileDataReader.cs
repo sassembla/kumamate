@@ -171,9 +171,13 @@ namespace Kumamate
                     {
                         // テキストなので、必要な情報をセット
                         var characters = string.Empty;
+                        var fontName = string.Empty;
                         var fontPostScriptName = string.Empty;
                         var fontSize = 0;
+                        var fontWeight = 0;
+
                         var lineHeightPercent = 0f;
+
                         var r = 0f;
                         var g = 0f;
                         var b = 0f;
@@ -189,7 +193,11 @@ namespace Kumamate
                                 case "style":
                                     var styleDict = t.Value as Dictionary<string, object>;
 
+                                    fontName = styleDict["fontFamily"] as string ?? string.Empty;
                                     fontPostScriptName = styleDict["fontPostScriptName"] as string ?? string.Empty;
+
+                                    fontWeight = Convert.ToInt32(styleDict["fontWeight"]);
+
                                     fontSize = Convert.ToInt32(styleDict["fontSize"]);
                                     lineHeightPercent = Convert.ToSingle(styleDict["lineHeightPercent"]);
                                     break;
@@ -258,8 +266,10 @@ namespace Kumamate
 
                         var text = new FigmaText();
                         text.Characters = characters;
+                        text.FontName = fontName;
                         text.FontPostScriptName = fontPostScriptName;
                         text.FontSize = fontSize;
+                        text.FontWeight = fontWeight;
                         text.LineHeightPercent = lineHeightPercent;
                         text.R = r;
                         text.G = g;
@@ -345,7 +355,8 @@ namespace Kumamate
                         switch (t.Key)
                         {
                             default:
-                                Debug.Log("unhandled t.Key:" + t.Key);
+                                // TODO: 後で何か拾えるものがあったら拾う
+                                // Debug.Log("unhandled t.Key:" + t.Key);
                                 break;
                         }
                     }

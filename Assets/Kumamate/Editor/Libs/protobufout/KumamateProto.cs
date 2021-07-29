@@ -33,19 +33,20 @@ namespace Kumamate {
             "dGUuRmlnbWFDb250ZW50Ei0KCXJlY3RhbmdsZRgFIAEoCzIYLmt1bWFtYXRl",
             "LkZpZ21hUmVjdGFuZ2xlSAASIwoEdGV4dBgGIAEoCzITLmt1bWFtYXRlLkZp",
             "Z21hVGV4dEgAQgkKB2NvbnRlbnQiPAoORmlnbWFSZWN0YW5nbGUSCQoBchgB",
-            "IAEoAhIJCgFnGAIgASgCEgkKAWIYAyABKAISCQoBYRgEIAEoAiKUAQoJRmln",
-            "bWFUZXh0EhIKCmNoYXJhY3RlcnMYASABKAkSGgoSZm9udFBvc3RTY3JpcHRO",
-            "YW1lGAIgASgJEhAKCGZvbnRTaXplGAMgASgFEhkKEWxpbmVIZWlnaHRQZXJj",
-            "ZW50GAQgASgCEgkKAXIYBSABKAISCQoBZxgGIAEoAhIJCgFiGAcgASgCEgkK",
-            "AWEYCCABKAIiQAoJRmlnbWFSZWN0EgkKAXgYASABKAISCQoBeRgCIAEoAhIN",
-            "CgV3aWR0aBgDIAEoAhIOCgZoZWlnaHQYBCABKAJiBnByb3RvMw=="));
+            "IAEoAhIJCgFnGAIgASgCEgkKAWIYAyABKAISCQoBYRgEIAEoAiK6AQoJRmln",
+            "bWFUZXh0EhIKCmNoYXJhY3RlcnMYASABKAkSEAoIZm9udE5hbWUYAiABKAkS",
+            "GgoSZm9udFBvc3RTY3JpcHROYW1lGAMgASgJEhAKCGZvbnRTaXplGAQgASgF",
+            "EhIKCmZvbnRXZWlnaHQYBSABKAUSGQoRbGluZUhlaWdodFBlcmNlbnQYBiAB",
+            "KAISCQoBchgHIAEoAhIJCgFnGAggASgCEgkKAWIYCSABKAISCQoBYRgKIAEo",
+            "AiJACglGaWdtYVJlY3QSCQoBeBgBIAEoAhIJCgF5GAIgASgCEg0KBXdpZHRo",
+            "GAMgASgCEg4KBmhlaWdodBgEIAEoAmIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::Kumamate.FigmaFrameData), global::Kumamate.FigmaFrameData.Parser, new[]{ "Identifier", "AbsRect", "Children" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Kumamate.FigmaContent), global::Kumamate.FigmaContent.Parser, new[]{ "Type", "Id", "AbsRect", "Children", "Rectangle", "Text" }, new[]{ "Content" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Kumamate.FigmaRectangle), global::Kumamate.FigmaRectangle.Parser, new[]{ "R", "G", "B", "A" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Kumamate.FigmaText), global::Kumamate.FigmaText.Parser, new[]{ "Characters", "FontPostScriptName", "FontSize", "LineHeightPercent", "R", "G", "B", "A" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Kumamate.FigmaText), global::Kumamate.FigmaText.Parser, new[]{ "Characters", "FontName", "FontPostScriptName", "FontSize", "FontWeight", "LineHeightPercent", "R", "G", "B", "A" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Kumamate.FigmaRect), global::Kumamate.FigmaRect.Parser, new[]{ "X", "Y", "Width", "Height" }, null, null, null, null)
           }));
     }
@@ -789,8 +790,10 @@ namespace Kumamate {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public FigmaText(FigmaText other) : this() {
       characters_ = other.characters_;
+      fontName_ = other.fontName_;
       fontPostScriptName_ = other.fontPostScriptName_;
       fontSize_ = other.fontSize_;
+      fontWeight_ = other.fontWeight_;
       lineHeightPercent_ = other.lineHeightPercent_;
       r_ = other.r_;
       g_ = other.g_;
@@ -815,8 +818,19 @@ namespace Kumamate {
       }
     }
 
+    /// <summary>Field number for the "fontName" field.</summary>
+    public const int FontNameFieldNumber = 2;
+    private string fontName_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public string FontName {
+      get { return fontName_; }
+      set {
+        fontName_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
     /// <summary>Field number for the "fontPostScriptName" field.</summary>
-    public const int FontPostScriptNameFieldNumber = 2;
+    public const int FontPostScriptNameFieldNumber = 3;
     private string fontPostScriptName_ = "";
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public string FontPostScriptName {
@@ -827,7 +841,7 @@ namespace Kumamate {
     }
 
     /// <summary>Field number for the "fontSize" field.</summary>
-    public const int FontSizeFieldNumber = 3;
+    public const int FontSizeFieldNumber = 4;
     private int fontSize_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public int FontSize {
@@ -837,8 +851,19 @@ namespace Kumamate {
       }
     }
 
+    /// <summary>Field number for the "fontWeight" field.</summary>
+    public const int FontWeightFieldNumber = 5;
+    private int fontWeight_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public int FontWeight {
+      get { return fontWeight_; }
+      set {
+        fontWeight_ = value;
+      }
+    }
+
     /// <summary>Field number for the "lineHeightPercent" field.</summary>
-    public const int LineHeightPercentFieldNumber = 4;
+    public const int LineHeightPercentFieldNumber = 6;
     private float lineHeightPercent_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public float LineHeightPercent {
@@ -849,7 +874,7 @@ namespace Kumamate {
     }
 
     /// <summary>Field number for the "r" field.</summary>
-    public const int RFieldNumber = 5;
+    public const int RFieldNumber = 7;
     private float r_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public float R {
@@ -860,7 +885,7 @@ namespace Kumamate {
     }
 
     /// <summary>Field number for the "g" field.</summary>
-    public const int GFieldNumber = 6;
+    public const int GFieldNumber = 8;
     private float g_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public float G {
@@ -871,7 +896,7 @@ namespace Kumamate {
     }
 
     /// <summary>Field number for the "b" field.</summary>
-    public const int BFieldNumber = 7;
+    public const int BFieldNumber = 9;
     private float b_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public float B {
@@ -882,7 +907,7 @@ namespace Kumamate {
     }
 
     /// <summary>Field number for the "a" field.</summary>
-    public const int AFieldNumber = 8;
+    public const int AFieldNumber = 10;
     private float a_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public float A {
@@ -906,8 +931,10 @@ namespace Kumamate {
         return true;
       }
       if (Characters != other.Characters) return false;
+      if (FontName != other.FontName) return false;
       if (FontPostScriptName != other.FontPostScriptName) return false;
       if (FontSize != other.FontSize) return false;
+      if (FontWeight != other.FontWeight) return false;
       if (!pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.Equals(LineHeightPercent, other.LineHeightPercent)) return false;
       if (!pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.Equals(R, other.R)) return false;
       if (!pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.Equals(G, other.G)) return false;
@@ -920,8 +947,10 @@ namespace Kumamate {
     public override int GetHashCode() {
       int hash = 1;
       if (Characters.Length != 0) hash ^= Characters.GetHashCode();
+      if (FontName.Length != 0) hash ^= FontName.GetHashCode();
       if (FontPostScriptName.Length != 0) hash ^= FontPostScriptName.GetHashCode();
       if (FontSize != 0) hash ^= FontSize.GetHashCode();
+      if (FontWeight != 0) hash ^= FontWeight.GetHashCode();
       if (LineHeightPercent != 0F) hash ^= pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.GetHashCode(LineHeightPercent);
       if (R != 0F) hash ^= pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.GetHashCode(R);
       if (G != 0F) hash ^= pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.GetHashCode(G);
@@ -944,32 +973,40 @@ namespace Kumamate {
         output.WriteRawTag(10);
         output.WriteString(Characters);
       }
-      if (FontPostScriptName.Length != 0) {
+      if (FontName.Length != 0) {
         output.WriteRawTag(18);
+        output.WriteString(FontName);
+      }
+      if (FontPostScriptName.Length != 0) {
+        output.WriteRawTag(26);
         output.WriteString(FontPostScriptName);
       }
       if (FontSize != 0) {
-        output.WriteRawTag(24);
+        output.WriteRawTag(32);
         output.WriteInt32(FontSize);
       }
+      if (FontWeight != 0) {
+        output.WriteRawTag(40);
+        output.WriteInt32(FontWeight);
+      }
       if (LineHeightPercent != 0F) {
-        output.WriteRawTag(37);
+        output.WriteRawTag(53);
         output.WriteFloat(LineHeightPercent);
       }
       if (R != 0F) {
-        output.WriteRawTag(45);
+        output.WriteRawTag(61);
         output.WriteFloat(R);
       }
       if (G != 0F) {
-        output.WriteRawTag(53);
+        output.WriteRawTag(69);
         output.WriteFloat(G);
       }
       if (B != 0F) {
-        output.WriteRawTag(61);
+        output.WriteRawTag(77);
         output.WriteFloat(B);
       }
       if (A != 0F) {
-        output.WriteRawTag(69);
+        output.WriteRawTag(85);
         output.WriteFloat(A);
       }
       if (_unknownFields != null) {
@@ -983,11 +1020,17 @@ namespace Kumamate {
       if (Characters.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(Characters);
       }
+      if (FontName.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(FontName);
+      }
       if (FontPostScriptName.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(FontPostScriptName);
       }
       if (FontSize != 0) {
         size += 1 + pb::CodedOutputStream.ComputeInt32Size(FontSize);
+      }
+      if (FontWeight != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(FontWeight);
       }
       if (LineHeightPercent != 0F) {
         size += 1 + 4;
@@ -1018,11 +1061,17 @@ namespace Kumamate {
       if (other.Characters.Length != 0) {
         Characters = other.Characters;
       }
+      if (other.FontName.Length != 0) {
+        FontName = other.FontName;
+      }
       if (other.FontPostScriptName.Length != 0) {
         FontPostScriptName = other.FontPostScriptName;
       }
       if (other.FontSize != 0) {
         FontSize = other.FontSize;
+      }
+      if (other.FontWeight != 0) {
+        FontWeight = other.FontWeight;
       }
       if (other.LineHeightPercent != 0F) {
         LineHeightPercent = other.LineHeightPercent;
@@ -1055,30 +1104,38 @@ namespace Kumamate {
             break;
           }
           case 18: {
+            FontName = input.ReadString();
+            break;
+          }
+          case 26: {
             FontPostScriptName = input.ReadString();
             break;
           }
-          case 24: {
+          case 32: {
             FontSize = input.ReadInt32();
             break;
           }
-          case 37: {
-            LineHeightPercent = input.ReadFloat();
-            break;
-          }
-          case 45: {
-            R = input.ReadFloat();
+          case 40: {
+            FontWeight = input.ReadInt32();
             break;
           }
           case 53: {
-            G = input.ReadFloat();
+            LineHeightPercent = input.ReadFloat();
             break;
           }
           case 61: {
-            B = input.ReadFloat();
+            R = input.ReadFloat();
             break;
           }
           case 69: {
+            G = input.ReadFloat();
+            break;
+          }
+          case 77: {
+            B = input.ReadFloat();
+            break;
+          }
+          case 85: {
             A = input.ReadFloat();
             break;
           }

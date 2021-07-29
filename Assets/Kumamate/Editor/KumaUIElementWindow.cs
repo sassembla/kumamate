@@ -1,9 +1,7 @@
-using System;
 using System.IO;
 using Kumamate;
 using TMPro;
 using UnityEditor;
-using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.UIElements;
@@ -12,11 +10,15 @@ using UnityEngine.UIElements;
 public class KumaUIElementWindow : EditorWindow
 {
     private string filePath;
-    // TODO: このへんにスロットのインスタンスもガッと持ちそう(そうしないとコンパイルで消される)
+
+    private FontMapping fontMapping;
+
+
+    private const float OUTPUT_RATIO = 3;// 出力値倍率 レイアウトのパラメータを画面に対してレイアウトするときの倍率。
+    private const float DRAW_RATIO = 1.0f;// 描画倍率 レイアウトをウィンドウ内に描画するときの倍率。まあ適当にいじれるのがいいね。
 
     public void OnEnable()
     {
-        Debug.Log("onEnable filePath:" + filePath);
         if (string.IsNullOrEmpty(filePath))
         {
             // パラメータがセットされていないので何もしない
@@ -132,7 +134,7 @@ public class KumaUIElementWindow : EditorWindow
         // }
     }
 
-    private static int currentDepth;
+    private static int currentDeepestDepth;
 
     private void DoLayout(VisualElement parent, FigmaRect parentRect, FigmaContent child, int depth)
     {
@@ -186,50 +188,66 @@ public class KumaUIElementWindow : EditorWindow
                 currentArea.RegisterCallback<DragEnterEvent>(
                     a =>
                     {
+                        Selection.activeObject = DragAndDrop.objectReferences[0];
                         // 選択中としてカラーを変更する
                         currentArea.style.backgroundColor = new StyleColor() { value = new Color(currentArea.style.color.value.r + 0.3f, currentArea.style.color.value.g + 0.3f, currentArea.style.color.value.b + 0.3f, currentArea.style.color.value.a + 0.1f) };
 
                         // 最も深い深度まで、depth情報を更新する。
-                        if (depth < currentDepth)
+                        if (depth < currentDeepestDepth)
                         {
                             return;
                         }
-                        currentDepth = depth;
+                        currentDeepestDepth = depth;
                     }
                 );
                 currentArea.RegisterCallback<DragLeaveEvent>(
-                    a =>
+                    _ =>
                     {
                         // 選択が終わったのでカラーを戻す
                         currentArea.style.backgroundColor = currentArea.style.color;
-                        currentDepth = -1;
+                        currentDeepestDepth = -1;
                     }
                 );
                 currentArea.RegisterCallback<DragExitedEvent>(
-                    a =>
+                    _ =>
                     {
-                        Debug.Log("here:" + DragAndDrop.objectReferences.Length + " current:" + a.target + " child:" + child.Id);// ここがレイヤー数分呼ばれるってことか。縦に貫通してるんだな。ってことは、一番上じゃないとダメ、ってやんなきゃだね。depthで上書きしよう。
-                        foreach (var dropedObjRef in DragAndDrop.objectReferences)
+                        // 現在D&D状態のmouseがオーバーレイしている一番深いレイヤーに対して処理を行う。
+                        if (currentDeepestDepth == depth)
                         {
-                            // レイアウトを合わせる
-                            if (dropedObjRef is GameObject go && currentDepth == depth)
+                            // 現在D&D処理中のオブジェクトに対して、レイアウト処理を行う。
+                            foreach (var dropedObjRef in DragAndDrop.objectReferences)
                             {
-                                AdoptLayout(go, child);
+                                // レイアウトを合わせる
+                                if (dropedObjRef is GameObject go)
+                                {
+                                    AdoptLayout(go, child);
 
-                                // objField.value = go;// これは効くが、特にやらない方が良さそう。
+                                    // objField.value = go;// これは効くが、特にやらない方が良さそう。
 
-                                // D&Dが終わったので対象のオブジェクトを選択状態にする。
-                                // TODO: というのがしたいんだが、戻るの何、、、D&DのOnEndがありそうだな〜。
-                                // Selection.objects = new UnityEngine.Object[] { go };// これでもダメ
-                                // Selection.activeTransform = go.transform;
-                                // Selection.activeInstanceID = go.GetInstanceID();
+                                    // D&Dが終わったので対象のオブジェクトを選択状態にする。
+                                    // TODO: というのがしたいんだが、一定時間したら勝手に選択が戻るの何、、、D&DのOnEndがありそうだな〜。 ちゃんとD&D実装すると良さそう。
+                                    // Selection.objects = new UnityEngine.Object[] { go };// これでもダメ
+                                    // Selection.activeTransform = go.transform;
+                                    // Selection.activeInstanceID = go.GetInstanceID();
+                                }
                             }
                         }
 
-                        // カラーを戻す
+                        // 処理が終わったのでカラーを戻す
                         currentArea.style.backgroundColor = currentArea.style.color;
                     }
                 );
+
+                // テキストだったらマップを作る
+                if (child.Type == "TEXT")
+                {
+                    if (fontMapping == null)
+                    {
+                        fontMapping = FontMapping.Create();
+                    }
+                    var textContent = child.Text;
+                    fontMapping.AddEntry(textContent.FontPostScriptName, textContent.FontName, textContent.FontWeight);
+                }
 
                 var borderColor = new StyleColor(Color.red);
                 currentArea.style.borderTopColor = borderColor;
@@ -270,32 +288,61 @@ public class KumaUIElementWindow : EditorWindow
             rectTrans.anchorMin = new Vector2(0, 1);
             rectTrans.anchorMax = new Vector2(0, 1);
             rectTrans.pivot = new Vector2(0, 1);
-            rectTrans.anchoredPosition = new Vector2(absPos.X * 3, absPos.Y * 3);
-            rectTrans.sizeDelta = new Vector2(absPos.Width * 3, absPos.Height * 3);
+            rectTrans.anchoredPosition = new Vector2(absPos.X * OUTPUT_RATIO, absPos.Y * OUTPUT_RATIO);
+            rectTrans.sizeDelta = new Vector2(absPos.Width * OUTPUT_RATIO, absPos.Height * OUTPUT_RATIO);
 
             // rectTrans.anchorMin = baseAnchor.anchorMin;
             // rectTrans.anchorMax = baseAnchor.anchorMax;
             // rectTrans.pivot = baseAnchor.pivot;
         }
 
+        // コンテンツごとのパラメータ入力を行う
         switch (content.Type)
         {
             case "TEXT":
                 var textContent = content.Text;
+
                 if (target.TryGetComponent<Text>(out var textComponent))
                 {
                     textComponent.text = textContent.Characters;
                     textComponent.color = new Color(textContent.R, textContent.G, textContent.B, textContent.A);
-                    textComponent.fontSize = textContent.FontSize * 3;
-                    // TODO: フォントファミリーをどうするかなー、、
+                    textComponent.fontSize = (int)(textContent.FontSize * OUTPUT_RATIO);
+
+                    // styleやfont weightなどの情報はcomponentから引き出す。
+                    if (fontMapping.TryChooseFontInfo<Text>(textContent.FontPostScriptName, textContent.FontName, textContent.FontWeight, out var mappedTextComponent))
+                    {
+                        textComponent.font = mappedTextComponent.font;
+                        textComponent.fontStyle = mappedTextComponent.fontStyle;
+                    }
+                    else
+                    {
+                        Debug.LogWarning("フォントエントリー:" + fontMapping.GetFontEntryStr(textContent.FontPostScriptName, textContent.FontName, textContent.FontWeight) + " が初期状態のまま存在している。FontMapping.assetを編集すると、次回以降のセットに対して反応するようになる。");
+                    }
                 }
                 else if (target.TryGetComponent<TMP_Text>(out var tmpTextComponent))
                 {
                     tmpTextComponent.text = textContent.Characters;
                     tmpTextComponent.color = new Color(textContent.R, textContent.G, textContent.B, textContent.A);
-                    tmpTextComponent.fontSize = textContent.FontSize * 3;
-                    // TODO: フォントファミリーをどうするかなー、、
+                    tmpTextComponent.fontSize = textContent.FontSize * OUTPUT_RATIO;
+
+                    // styleやfont weightなどの情報はcomponentから引き出す。
+                    if (fontMapping.TryChooseFontInfo<TMP_Text>(textContent.FontPostScriptName, textContent.FontName, textContent.FontWeight, out var mappedTmpComponent))
+                    {
+                        tmpTextComponent.font = mappedTmpComponent.font;
+                        tmpTextComponent.fontStyle = mappedTmpComponent.fontStyle;
+                    }
+                    else
+                    {
+                        Debug.LogWarning("フォントエントリー:" + fontMapping.GetFontEntryStr(textContent.FontPostScriptName, textContent.FontName, textContent.FontWeight) + " が初期状態のまま存在している。FontMapping.assetを編集すると、次回以降のセットに対して反応するようになる。");
+                    }
                 }
+                break;
+            case "ELLIPSE":
+            case "FRAME":
+            case "RECTANGLE":
+                break;
+            default:
+                Debug.LogError("未知のタイプ:" + content.Type);
                 break;
         }
     }

@@ -39,13 +39,16 @@ message FigmaRectangle
 message FigmaText
 {
     string characters = 1;
-    string fontPostScriptName = 2;
-    int32 fontSize = 3;
-    float lineHeightPercent = 4;
-    float r = 5;
-    float g = 6;
-    float b = 7;
-    float a = 8;
+    string fontName = 2;
+    string fontPostScriptName = 3;
+    
+    int32 fontSize = 4;
+    int32 fontWeight = 5;
+    float lineHeightPercent = 6;
+    float r = 7;
+    float g = 8;
+    float b = 9;
+    float a = 10;
 }
 
 message FigmaRect
