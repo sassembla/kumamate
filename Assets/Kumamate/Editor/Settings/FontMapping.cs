@@ -5,6 +5,7 @@ using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
+// figmaに記録されているフォント情報とUnity上でセットするフォント情報を紐づける箇所。
 public class FontMapping : ScriptableObject
 {
     [SerializeField] private string[] fontEntries = new string[0];
@@ -89,17 +90,34 @@ public class FontMapping : ScriptableObject
     public bool TryChooseFontInfo<T>(string fontPostScriptName, string fontName, int fontWeight, out T component) where T : Component
     {
         var entry = GetFontEntryStr(fontPostScriptName, fontName, fontWeight);
-        if (entryAndObjectPathDict.ContainsKey(entry))
-        {
-            var valPath = entryAndObjectPathDict[entry];
-            var prefab = AssetDatabase.LoadAssetAtPath<T>(valPath);
 
-            component = prefab.GetComponent<T>();
-            return true;
+        // キー自体がない
+        if (!entryAndObjectPathDict.ContainsKey(entry))
+        {
+            component = null;
+            return false;
         }
 
-        component = null;
-        return false;
+        var valPath = entryAndObjectPathDict[entry];
+
+        // valが空文字
+        if (string.IsNullOrEmpty(valPath))
+        {
+            component = null;
+            return false;
+        }
+
+        var prefab = AssetDatabase.LoadAssetAtPath<T>(valPath);
+
+        // prefabがmissing
+        if (prefab == null)
+        {
+            component = null;
+            return false;
+        }
+
+        component = prefab.GetComponent<T>();
+        return true;
     }
 }
 
@@ -127,9 +145,6 @@ public class FontMappingInspector : Editor
         visualElement.Add(scrollViewRoot);
 
         var keysAndValues = new VisualElement();
-        // keysAndValues.style.flexDirection = new StyleEnum<FlexDirection>() { value = FlexDirection.Row };
-        // keysAndValues.style.alignItems = new StyleEnum<Align>() { value = Align.Auto };
-        // keysAndValues.style.justifyContent = new StyleEnum<Justify>() { value = Justify.Center };
 
         foreach (var item in fontDict)
         {
@@ -146,7 +161,7 @@ public class FontMappingInspector : Editor
                 valVElement.label = fontEntry;
                 valVElement.style.width = new StyleLength() { value = new Length(80f, LengthUnit.Percent) };
                 valVElement.objectType = typeof(GameObject);
-                // valVElement.RegisterValueChangedCallback() += go => { };// セットされた時のコールバック、、、
+                // valVElement.RegisterValueChangedCallback() += go => { };// TODO: セットされた時のコールバック、そのうち解決しないと、外部から持って来れない。
 
                 // 値が存在すれば、対象のprefabが存在するはずなので読み出す。
                 if (!string.IsNullOrEmpty(item.Value))
@@ -160,12 +175,8 @@ public class FontMappingInspector : Editor
                     }
                     else
                     {
-                        Debug.LogWarning("fontEntry:" + fontEntry + " losts attached prefab at:" + prefabPath);
+                        Debug.LogWarning("fontEntry:" + fontEntry + " losts attached prefab. located at:" + prefabPath + " is now missing.");
                     }
-                }
-                else
-                {
-                    Debug.Log("ない fontEntry:" + fontEntry);
                 }
 
                 // 作成して追加するボタン
@@ -183,10 +194,6 @@ public class FontMappingInspector : Editor
                     DestroyImmediate(newGOBase);
 
                     fontDict[fontEntry] = prefabPath;
-                    foreach (var a in fontDict)
-                    {
-                        Debug.Log("inserted:" + a.Key + " v:" + a.Value);
-                    }
 
                     // 追加されたパスを元に保持情報を更新
                     fontMapping.UpdateEntry(fontDict);

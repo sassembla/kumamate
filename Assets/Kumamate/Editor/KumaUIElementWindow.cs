@@ -13,9 +13,9 @@ public class KumaUIElementWindow : EditorWindow
 
     private FontMapping fontMapping;
 
-
-    private const float OUTPUT_RATIO = 3;// 出力値倍率 レイアウトのパラメータを画面に対してレイアウトするときの倍率。
-    private const float DRAW_RATIO = 1.0f;// 描画倍率 レイアウトをウィンドウ内に描画するときの倍率。まあ適当にいじれるのがいいね。
+    // TODO: 変動できるようにする。コンパイル可能なものを書き換える方が正直いいのではと言うのはある。
+    private const float OUTPUT_RATIO = 3f;// 出力値倍率 レイアウトのパラメータを画面に対してレイアウトするときの倍率。
+    private const float DRAW_RATIO = 1.0f;// 描画倍率 レイアウトをウィンドウ内に描画するときの倍率。
 
     public void OnEnable()
     {
@@ -52,29 +52,11 @@ public class KumaUIElementWindow : EditorWindow
 
 
         // 中身の親となる箱を組み立てていく
-        // TODO: これ等倍でやるとマジで難しいので、なんとかしてウィンドウのアスペクトみたいなものを用意したいところ。w,hを持たせたrelativeみたいなのがやりたい。
         var rootArea = new VisualElement();
-        rootArea.style.width = new StyleLength() { value = new Length(frameData.AbsRect.Width, LengthUnit.Pixel) };
-        rootArea.style.height = new StyleLength() { value = new Length(frameData.AbsRect.Height, LengthUnit.Pixel) };
-        rootArea.Add(new Label("p:" + frameData.Identifier));
+        rootArea.style.width = new StyleLength() { value = new Length(frameData.AbsRect.Width * DRAW_RATIO, LengthUnit.Pixel) };
+        rootArea.style.height = new StyleLength() { value = new Length(frameData.AbsRect.Height * DRAW_RATIO, LengthUnit.Pixel) };
 
         scrollViewRoot.Add(rootArea);
-
-        /*
-            これを再現する。
-<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
-<ui:VisualElement style="flex-direction: row; align-items: auto; justify-content: center;">
-    <uie:ObjectField name="the-uxml-field" style="width: 33%;"/>
-    <ui:Button text="Button" display-tooltip-when-elided="true" style="width: 33%; -unity-text-align: middle-center; white-space: nowrap;" />
-    <ui:Button text="Button" display-tooltip-when-elided="true" style="width: 33%; -unity-text-align: middle-center; white-space: nowrap;" />
-</ui:VisualElement>
-<ui:VisualElement style="flex-direction: row; align-items: auto; justify-content: center;">
-    <ui:Button text="Button" display-tooltip-when-elided="true" style="width: 50%; -unity-text-align: middle-center; white-space: nowrap;" />
-    <ui:Button text="Button" display-tooltip-when-elided="true" style="width: 50%; -unity-text-align: middle-center; white-space: nowrap;" />
-</ui:VisualElement>
-<uie:ObjectField label="UXMLaaaa Field" name="the-uxml-field" />
-</ui:UXML>
-        */
 
         var baseRect = new FigmaRect()
         {
@@ -83,62 +65,20 @@ public class KumaUIElementWindow : EditorWindow
             Width = 0,
             Height = 0
         };
-        // ここから先でchildrenをガンガンレイアウトする。
+
+        // childのレイアウト + 未知のフォント情報の収集を行う
         foreach (var child in frameData.Children)
         {
             DoLayout(rootArea, baseRect, child, 1);
-            // Debug.Log("child:" + ReadFigmaRect(child.AbsRect) + " child-children:" + child.Children.Count);
         }
-
-        return;
-
-        // var leftArea = new VisualElement();
-        // rootArea.Add(leftArea);
-        // leftArea.style.width = new StyleLength() { value = new Length(50f, LengthUnit.Percent) };
-        // leftArea.Add(new TextField("Tex"));
-        // leftArea.Add(new MinMaxSlider("MMSlid"));
-        // leftArea.Add(new Button() { text = "BBBB" });
-        // leftArea.Add(new Button() { text = "BBBB" });
-        // leftArea.Add(new Button() { text = "BBBB" });
-        // leftArea.Add(new Button() { text = "BBBB" });
-        // leftArea.Add(new Button() { text = "BBBB" });
-        // leftArea.Add(new Button() { text = "BBBB" });
-        // leftArea.Add(new Button() { text = "BBBB" });
-        // leftArea.Add(new Button() { text = "BBBB" });
-        // leftArea.Add(new Button() { text = "BBBB" });
-        // leftArea.Add(new Button() { text = "BBBB" });
-        // leftArea.Add(new Button() { text = "BBBB" });
-        // leftArea.Add(new Button() { text = "BBBB" });
-        // leftArea.Add(new Button() { text = "BBBB" });
-        // leftArea.Add(new Button() { text = "BBBB" });
-        // leftArea.Add(new Button() { text = "BBBB" });
-        // leftArea.Add(new Button() { text = "BBBB" });
-        // leftArea.Add(new Button() { text = "BBBB" });
-        // leftArea.Add(new Button() { text = "BBBB" });
-        // leftArea.Add(new Button() { text = "BBBB" });
-
-
-        // var rightArea = new VisualElement();
-        // rootArea.Add(rightArea);
-        // rightArea.style.position = new StyleEnum<Position>() { value = Position.Absolute };// うーん、3つ並べてえいって感じじゃないのかな、、
-        // rightArea.style.left = new StyleLength() { value = new Length(50, LengthUnit.Percent) };// アンカリングをコードでやるのやめてくれ、、せめてもっと綺麗にセットさせてくれ、、、
-        // rightArea.style.width = new StyleLength() { value = new Length(50, LengthUnit.Percent) };
-        // rightArea.style.height = new StyleLength() { value = new Length(100, LengthUnit.Percent) };
-
-        // var scrollView = new ScrollView(ScrollViewMode.Vertical);
-        // rightArea.Add(scrollView);
-        // scrollView.style.height = new StyleLength() { value = new Length(100f, LengthUnit.Percent) };// ここでスクロールビュー高さが決まっていた
-        // for (var i = 0; i < 100; i++)
-        // {
-        //     scrollView.Add(new Label("label:" + i));
-        // }
     }
 
+    // マウスオーバーしている範囲で、最も深度が深い = 手前にあるオブジェクトにフォーカスが行くように規定している。
     private static int currentDeepestDepth;
 
     private void DoLayout(VisualElement parent, FigmaRect parentRect, FigmaContent child, int depth)
     {
-        var absPos = child.AbsRect;
+        var absPos = child.AbsRect.Mul(DRAW_RATIO);
         var relativePos = absPos.Minus(parentRect);
 
         var lineWidth = 0.1f;
@@ -160,31 +100,8 @@ public class KumaUIElementWindow : EditorWindow
                 currentArea.style.color = new StyleColor() { value = new Color(UnityEngine.Random.Range(0f, 1f), ((byte)UnityEngine.Random.Range(0f, 1f)), UnityEngine.Random.Range(0f, 1f), 0.1f * depth) };
                 currentArea.style.backgroundColor = currentArea.style.color;
 
-
-                // var label = new Label("type:" + child.Type);
-                // currentArea.Add(label);// TODO: 適当につけてる、ここが変わると良さそう
-
-                // currentArea.RegisterCallback<DragPerformEvent>(a =>
-                // {
-                //     Debug.Log("a:" + a);// これだけ呼ばれないとか？ 呼ばれねえ-w なるほどどうして？ -> これはdrag「された側」が持ってないといけないコードだ、たぶん。
-                // });
-
-                // オブジェクトフィールド、あんまり使い心地がよくなかった。
-                // var objField = new ObjectField();
-                // objField.objectType = typeof(GameObject);
-                // objField.SetEnabled(true);
-                // objField.RegisterCallback<ChangeEvent<GameObject>>(changedObject =>
-                // {
-                //     Debug.Log("changedObject:" + changedObject);
-                // });
-                // objField.style.width = currentArea.style.width;
-                // objField.style.height = currentArea.style.height;
-                // // objField.style.backgroundColor = new StyleColor() { value = new Color(0f, 0f, 0f, 0f) };
-                // objField.style.backgroundImage = new StyleBackground() { value = new Background() };
-                // // objField.
-                // currentArea.Add(objField);
-
-
+                // D&Dでdropする時のアクションを書いている。
+                // TODO: 綺麗に落ちないため、色々調整したい。
                 currentArea.RegisterCallback<DragEnterEvent>(
                     a =>
                     {
@@ -282,7 +199,7 @@ public class KumaUIElementWindow : EditorWindow
         {
             var absPos = content.AbsRect;
 
-            // TODO: ここでアンカーを一瞬解除し、戻す、、ということがしたいが、うーん、、まあ頑張って計算するしかない。またか。
+            // TODO: ここでアンカーを一瞬解除し、戻す、、ということがしたいが、そのままやると座標系が狂う。変換 -> 編集が1fだとまずいらしい。うーん、、まあ頑張って計算するしかない。またか。
             var baseAnchor = (rectTrans.anchorMin, rectTrans.anchorMax, rectTrans.pivot);
 
             rectTrans.anchorMin = new Vector2(0, 1);
@@ -291,9 +208,9 @@ public class KumaUIElementWindow : EditorWindow
             rectTrans.anchoredPosition = new Vector2(absPos.X * OUTPUT_RATIO, absPos.Y * OUTPUT_RATIO);
             rectTrans.sizeDelta = new Vector2(absPos.Width * OUTPUT_RATIO, absPos.Height * OUTPUT_RATIO);
 
-            // rectTrans.anchorMin = baseAnchor.anchorMin;
-            // rectTrans.anchorMax = baseAnchor.anchorMax;
-            // rectTrans.pivot = baseAnchor.pivot;
+            rectTrans.anchorMin = baseAnchor.anchorMin;
+            rectTrans.anchorMax = baseAnchor.anchorMax;
+            rectTrans.pivot = baseAnchor.pivot;
         }
 
         // コンテンツごとのパラメータ入力を行う
@@ -340,6 +257,7 @@ public class KumaUIElementWindow : EditorWindow
             case "ELLIPSE":
             case "FRAME":
             case "RECTANGLE":
+            case "INSTANCE":
                 break;
             default:
                 Debug.LogError("未知のタイプ:" + content.Type);
@@ -356,6 +274,19 @@ public class KumaUIElementWindow : EditorWindow
 
 public static class FigmaRectExtension
 {
+    public static FigmaRect Mul(this FigmaRect target, float ratio)
+    {
+        var result = new FigmaRect()
+        {
+            X = target.X * ratio,
+            Y = target.Y * ratio,
+            Width = target.Width * ratio,
+            Height = target.Height * ratio,
+        };
+
+        return result;
+    }
+
     public static FigmaRect Minus(this FigmaRect target, FigmaRect minus)
     {
         var result = new FigmaRect()

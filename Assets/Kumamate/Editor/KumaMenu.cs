@@ -9,14 +9,14 @@ namespace Kumamate
     public class KumaMenu : EditorWindow
     {
 
-        [MenuItem("Window/Kumamate")]
+        [MenuItem("Window/Kumamate/Open")]
         static void Open()
         {
             var window = (KumaMenu)EditorWindow.GetWindow(typeof(KumaMenu));
             window.Show();
         }
 
-        private string figmaFileUrl = "https://www.figma.com/file/EkwynraOS5tfbAyBBbflGE/Untitled?node-id=1%3A2";// TODO: 消す
+        [SerializeField] private string figmaFileUrl;
 
         // UI表示
         // TODO: ここもなーそのうちUIElementsにするといいかもねー別に後でいいけど。
@@ -32,7 +32,7 @@ namespace Kumamate
 
             // TODO: 保存済みのファイルからファイル名一覧を読み出す
             // ここからボタンを増やす？ちょっとUI考えないといけないけど、この名前のUIのプレビューとかが出せると超うれしいなあ、、まあ名前とかDLが終わったら即とかの方が体験が良さそう。
-            if (GUILayout.Button("test read"))
+            if (GUILayout.Button("1番目のファイルを読む(テスト実装)"))
             {
                 var currentCachedFileNames = new List<string>();// TODO: ここでは本来、リストを表示してユーザーがどの画面のレイアウトをしたいかを選ぶところにしたい。ところ。
 
@@ -41,7 +41,6 @@ namespace Kumamate
                 var files = Directory.GetFiles(KumaConstants.STORAGE_PATH).Where(p => p.EndsWith(KumaConstants.EXTENSION));
                 foreach (var file in files)
                 {
-                    Debug.Log("file:" + file);
                     // TODO: 適当に限定的な要素をみる
                     if (i == 0)
                     {
