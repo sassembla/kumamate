@@ -15,6 +15,10 @@ public class EditorTool
         var frameworkPath = "Assets/Kumamate";
         CollectPathRecursive(frameworkPath, assetPaths, new string[] { KumaConstants.STORAGE_PATH, KumaConstants.FONTS_PATH });
 
+        foreach (var path in assetPaths)
+        {
+            Debug.Log("exporting path:" + path);
+        }
         AssetDatabase.ExportPackage(assetPaths.ToArray(), "Kumamate.unitypackage", ExportPackageOptions.IncludeDependencies);
     }
 
