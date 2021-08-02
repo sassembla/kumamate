@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using System.IO;
 using UnityEngine;
+using Kumamate;
 
 [InitializeOnLoad]
 public class EditorTool
@@ -12,7 +13,7 @@ public class EditorTool
         var assetPaths = new List<string>();
 
         var frameworkPath = "Assets/Kumamate";
-        CollectPathRecursive(frameworkPath, assetPaths, new string[] { "Assets/Kumamate/Editor/Storage/", "Assets/Kumamate/Editor/Settings/Fonts/", });
+        CollectPathRecursive(frameworkPath, assetPaths, new string[] { KumaConstants.STORAGE_PATH, KumaConstants.FONTS_PATH });
 
         AssetDatabase.ExportPackage(assetPaths.ToArray(), "Kumamate.unitypackage", ExportPackageOptions.IncludeDependencies);
     }
