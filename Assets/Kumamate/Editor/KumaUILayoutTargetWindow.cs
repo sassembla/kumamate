@@ -7,7 +7,7 @@ using UnityEngine.UI;
 using UnityEngine.UIElements;
 
 // TODO: 実験中のクラス、最終的にはUIの生成を助けるロケーター穴の生成を大量に行い、セットアップして参照されているオブジェクトのあらゆる値を更新する。
-public class KumaUIElementWindow : EditorWindow
+public class KumaUILayoutTargetWindow : EditorWindow
 {
     private string filePath;
 

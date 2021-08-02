@@ -18,8 +18,13 @@ namespace Kumamate
 
         [SerializeField] private string figmaFileUrl;
 
+        // TODO: そのうちUIElementsにする
+        // private void OnEnable()
+        // {
+        //     this.rootVisualElement.Clear();
+        // }
+
         // UI表示
-        // TODO: ここもなーそのうちUIElementsにするといいかもねー別に後でいいけど。
         void OnGUI()
         {
             figmaFileUrl = EditorGUILayout.TextField("Figma Share URL", figmaFileUrl);
@@ -44,7 +49,7 @@ namespace Kumamate
                     // TODO: 適当に限定的な要素をみる
                     if (i == 0)
                     {
-                        var window = EditorWindow.GetWindow<KumaUIElementWindow>();
+                        var window = EditorWindow.GetWindow<KumaUILayoutTargetWindow>();
                         window.Setup(file);
                         break;
                     }
