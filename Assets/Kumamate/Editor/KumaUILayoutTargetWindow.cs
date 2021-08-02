@@ -1,5 +1,4 @@
 using System.IO;
-using Kumamate;
 using TMPro;
 using UnityEditor;
 using UnityEngine;
@@ -14,9 +13,7 @@ namespace Kumamate
 
         private FontMapping fontMapping;
 
-        // TODO: 変動できるようにする。コンパイル可能なものを書き換える方が正直いいのではと言うのはある。
-        private const float OUTPUT_RATIO = 3f;// 出力値倍率 レイアウトのパラメータを画面に対してレイアウトするときの倍率。
-        private const float DRAW_RATIO = 1.0f;// 描画倍率 レイアウトをウィンドウ内に描画するときの倍率。
+        private LayoutRatioSetting ratioSetting;
 
         public void OnEnable()
         {
@@ -38,6 +35,10 @@ namespace Kumamate
 
         private void ReloadView(string filePath)
         {
+            // 表示倍率/出力倍率のデータを取得する
+            ratioSetting = LayoutRatioSetting.Create();
+
+
             var name = Path.GetFileNameWithoutExtension(filePath);
 
             var bytes = File.ReadAllBytes(filePath);
@@ -54,8 +55,8 @@ namespace Kumamate
 
             // 中身の親となる箱を組み立てていく
             var rootArea = new VisualElement();
-            rootArea.style.width = new StyleLength() { value = new Length(frameData.AbsRect.Width * DRAW_RATIO, LengthUnit.Pixel) };
-            rootArea.style.height = new StyleLength() { value = new Length(frameData.AbsRect.Height * DRAW_RATIO, LengthUnit.Pixel) };
+            rootArea.style.width = new StyleLength() { value = new Length(frameData.AbsRect.Width * ratioSetting.DRAW_RATIO, LengthUnit.Pixel) };
+            rootArea.style.height = new StyleLength() { value = new Length(frameData.AbsRect.Height * ratioSetting.DRAW_RATIO, LengthUnit.Pixel) };
 
             scrollViewRoot.Add(rootArea);
 
@@ -79,7 +80,7 @@ namespace Kumamate
 
         private void DoLayout(VisualElement parent, FigmaRect parentRect, FigmaContent child, int depth)
         {
-            var absPos = child.AbsRect.Mul(DRAW_RATIO);
+            var absPos = child.AbsRect.Mul(ratioSetting.DRAW_RATIO);
             var relativePos = absPos.Minus(parentRect);
 
             var lineWidth = 0.1f;
@@ -206,12 +207,12 @@ namespace Kumamate
                 rectTrans.anchorMin = new Vector2(0, 1);
                 rectTrans.anchorMax = new Vector2(0, 1);
                 rectTrans.pivot = new Vector2(0, 1);
-                rectTrans.anchoredPosition = new Vector2(absPos.X * OUTPUT_RATIO, absPos.Y * OUTPUT_RATIO);
-                rectTrans.sizeDelta = new Vector2(absPos.Width * OUTPUT_RATIO, absPos.Height * OUTPUT_RATIO);
+                rectTrans.anchoredPosition = new Vector2(absPos.X * ratioSetting.OUTPUT_RATIO, absPos.Y * ratioSetting.OUTPUT_RATIO);
+                rectTrans.sizeDelta = new Vector2(absPos.Width * ratioSetting.OUTPUT_RATIO, absPos.Height * ratioSetting.OUTPUT_RATIO);
 
-                rectTrans.anchorMin = baseAnchor.anchorMin;
-                rectTrans.anchorMax = baseAnchor.anchorMax;
-                rectTrans.pivot = baseAnchor.pivot;
+                // rectTrans.anchorMin = baseAnchor.anchorMin;
+                // rectTrans.anchorMax = baseAnchor.anchorMax;
+                // rectTrans.pivot = baseAnchor.pivot;
             }
 
             // コンテンツごとのパラメータ入力を行う
@@ -224,7 +225,7 @@ namespace Kumamate
                     {
                         textComponent.text = textContent.Characters;
                         textComponent.color = new Color(textContent.R, textContent.G, textContent.B, textContent.A);
-                        textComponent.fontSize = (int)(textContent.FontSize * OUTPUT_RATIO);
+                        textComponent.fontSize = (int)(textContent.FontSize * ratioSetting.OUTPUT_RATIO);
 
                         // styleやfont weightなどの情報はcomponentから引き出す。
                         if (fontMapping.TryChooseFontInfo<Text>(textContent.FontPostScriptName, textContent.FontName, textContent.FontWeight, out var mappedTextComponent))
@@ -241,7 +242,7 @@ namespace Kumamate
                     {
                         tmpTextComponent.text = textContent.Characters;
                         tmpTextComponent.color = new Color(textContent.R, textContent.G, textContent.B, textContent.A);
-                        tmpTextComponent.fontSize = textContent.FontSize * OUTPUT_RATIO;
+                        tmpTextComponent.fontSize = textContent.FontSize * ratioSetting.OUTPUT_RATIO;
 
                         // styleやfont weightなどの情報はcomponentから引き出す。
                         if (fontMapping.TryChooseFontInfo<TMP_Text>(textContent.FontPostScriptName, textContent.FontName, textContent.FontWeight, out var mappedTmpComponent))
