@@ -60,6 +60,7 @@ namespace Kumamate
                 case FigmaAccessState.GettingClientCodeFailed:
                 case FigmaAccessState.GettingAccessTokenFailed:
                 case FigmaAccessState.GettingFileInfoFailed:
+                    // pass.
                     break;
                 case FigmaAccessState.GettingAccessToken:
                     Debug.Log("アクセス中です。ブラウザでfigmaへのアクセスを許可するかどうかが出ているので、よく考えてから許可するか拒否してください。");
@@ -375,6 +376,11 @@ namespace Kumamate
             using (var output = new CodedOutputStream(buffer))
             {
                 topLevelFrame.WriteTo(output);
+                if (!Directory.Exists(KumaConstants.STORAGE_PATH))
+                {
+                    Directory.CreateDirectory(KumaConstants.STORAGE_PATH);
+                }
+
                 File.WriteAllBytes(KumaConstants.STORAGE_PATH + topLevelFrameFileName + KumaConstants.EXTENSION, buffer);
             }
         }

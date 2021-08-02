@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.UIElements;
@@ -187,6 +188,11 @@ namespace Kumamate
                     newButton.clicked += () =>
                     {
                         var newGOBase = new GameObject(fontEntry);
+                        if (!Directory.Exists(KumaConstants.FONTS_PATH))
+                        {
+                            Directory.CreateDirectory(KumaConstants.FONTS_PATH);
+                        }
+
                         var prefabPath = KumaConstants.FONTS_PATH + fontEntry + ".prefab";
                         {
                             // prefabを作成し、任意のtext componentをつけるのを可能にする。
